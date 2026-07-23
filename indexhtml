@@ -1,54 +1,976 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Notes Studio</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div>
-            <p class="eyebrow">Personal workspace</p>
-            <h1>Notes Studio</h1>
-          </div>
-          <p class="sidebar-copy">
-            Build sections, capture notes, and track progress with configurable lists.
-          </p>
-        </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Notes & Lists</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: #f2f5fa;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
 
-        <button id="add-section-btn" class="primary-btn">+ New section</button>
-        <ul id="section-list" class="section-list"></ul>
-      </aside>
+        .sidebar {
+            position: relative;
+            width: 280px;
+            min-width: 280px;
+            background: #ffffff;
+            border-right: 1px solid #e2e9f2;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 1.8rem 0.8rem 2rem 1.2rem;
+            transition: transform 0.25s ease, margin 0.25s ease, opacity 0.2s ease;
+            z-index: 10;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.02);
+            margin-top: 0;
+        }
+        .sidebar.hidden {
+            transform: translateX(-100%);
+            margin-right: -280px;
+            opacity: 0;
+            pointer-events: none;
+        }
 
-      <main class="content">
-        <header class="content-header">
-          <div class="title-block">
-            <p class="eyebrow">Active section</p>
-            <input id="section-title-input" class="title-input" value="Select a section" />
-          </div>
-          <div class="header-actions">
-            <div class="create-menu-wrap">
-              <button id="create-menu-btn" class="primary-btn" aria-label="Create new">＋</button>
-              <div id="create-menu" class="create-menu" hidden>
-                <button type="button" class="menu-action" data-create-action="note">New note</button>
-                <button type="button" class="menu-action" data-create-action="list">New list</button>
-              </div>
-            </div>
-          </div>
-        </header>
+        .sidebar-toggle-wrapper {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 20;
+            padding: 1.2rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: transparent;
+            pointer-events: none;
+        }
+        .sidebar-toggle-wrapper button {
+            pointer-events: auto;
+            background: white;
+            border: 1px solid #d0d8e6;
+            border-radius: 40px;
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            color: #1f2a44;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+        .sidebar-toggle-wrapper button:hover {
+            background: #f0f4fe;
+            border-color: #a0b3d9;
+        }
 
-        <section id="empty-state" class="empty-state">
-          <h2>Create your first section</h2>
-          <p>Use the sidebar to start organizing your notes and checklists.</p>
-        </section>
+        .sidebar-content {
+            padding-top: 4.5rem;
+        }
 
-        <section id="section-content" class="section-content"></section>
-      </main>
+        .save-indicator {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            background: #2a6df4;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 30;
+            box-shadow: 0 4px 12px rgba(42, 109, 244, 0.3);
+            pointer-events: none;
+        }
+        .save-indicator.show {
+            opacity: 1;
+        }
+        .save-indicator.error {
+            background: #e74c5e;
+        }
+
+        .sync-status {
+            font-size: 0.7rem;
+            color: #7a8aa8;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .sync-status i {
+            font-size: 0.6rem;
+        }
+        .sync-status .synced {
+            color: #2a6df4;
+        }
+        .sync-status .unsynced {
+            color: #e74c5e;
+        }
+        .sync-status .syncing {
+            color: #f4a261;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-panel {
+            background: #f8f9ff;
+            border: 1px solid #dce3f0;
+            border-radius: 12px;
+            padding: 0.8rem 1.2rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .status-panel .status-info {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: #1f2a44;
+        }
+        .status-panel .status-info i {
+            color: #2a6df4;
+        }
+        .status-panel .status-info .connected {
+            color: #2a6df4;
+        }
+        .status-panel .status-info .disconnected {
+            color: #7a8aa8;
+        }
+        .status-panel .status-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .status-panel .status-actions button {
+            padding: 0.2rem 0.8rem;
+            border-radius: 20px;
+            border: 1px solid #d0d8e6;
+            background: white;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.15s;
+            color: #1f2a44;
+        }
+        .status-panel .status-actions button:hover {
+            background: #f0f4fe;
+        }
+        .status-panel .status-actions button.primary {
+            background: #2a6df4;
+            color: white;
+            border-color: #2a6df4;
+        }
+        .status-panel .status-actions button.primary:hover {
+            background: #1a5ad4;
+        }
+
+        .section-group {
+            margin-bottom: 1.8rem;
+        }
+        .section-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #2d405f;
+            padding: 0.5rem 0.4rem 0.3rem 0.4rem;
+            border-bottom: 1px solid #eef2f8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: default;
+        }
+        .section-title .section-actions i {
+            margin-left: 6px;
+            color: #889bc0;
+            font-size: 0.7rem;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+        .section-title .section-actions i:hover {
+            color: #1f3a6b;
+        }
+        .subsection-list {
+            list-style: none;
+            margin-top: 0.25rem;
+        }
+        .subsection-list li {
+            padding: 0.35rem 0.4rem 0.35rem 1.2rem;
+            font-size: 0.9rem;
+            color: #1e2b45;
+            border-radius: 6px;
+            margin: 0.1rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: default;
+        }
+        .subsection-list li i {
+            color: #5f73a0;
+            font-size: 0.75rem;
+            width: 1.1rem;
+        }
+        .subsection-list li:hover {
+            background: #eef4fe;
+        }
+
+        .add-section-btn {
+            background: transparent;
+            border: none;
+            color: #4d6a9a;
+            font-size: 0.8rem;
+            padding: 0.3rem 0.2rem;
+            margin-top: 2.5rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: 0.15s;
+            border-radius: 20px;
+            padding: 0.3rem 0.8rem;
+        }
+        .add-section-btn:hover {
+            background: #e6edf9;
+            color: #1d3b70;
+        }
+
+        .main {
+            flex: 1;
+            height: 100vh;
+            overflow-y: auto;
+            padding: 2rem 2.5rem 3rem 2.5rem;
+            background: #f6f8fc;
+            transition: padding 0.2s;
+            margin-left: 0;
+        }
+
+        .main-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2.5rem;
+            padding-top: 0.5rem;
+            padding-bottom: 0.8rem;
+            border-bottom: 2px solid #e1e8f0;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .main-header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: #0b162b;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .main-header h1 i {
+            color: #2a6df4;
+        }
+        .main-header .badge {
+            background: #dce5f5;
+            padding: 0.3rem 1.2rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            color: #1f2f4a;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .content-section {
+            background: white;
+            border-radius: 18px;
+            padding: 1.8rem 2rem 2rem 2rem;
+            margin-bottom: 2.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            border: 1px solid #eef2f8;
+        }
+        .content-section h3 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #0e1b33;
+            margin-bottom: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 1px solid #f0f4fc;
+        }
+        .content-section h3 i {
+            color: #2a6df4;
+            font-size: 1.2rem;
+        }
+        .content-section h3 .section-tools {
+            margin-left: auto;
+            font-size: 0.7rem;
+            font-weight: 400;
+            color: #b0bdd6;
+            display: flex;
+            gap: 8px;
+        }
+        .content-section h3 .section-tools i {
+            cursor: pointer;
+            color: #b0bdd6;
+            font-size: 0.8rem;
+            transition: 0.15s;
+        }
+        .content-section h3 .section-tools i:hover {
+            color: #e74c5e;
+        }
+
+        .note-item {
+            background: #f9fbfe;
+            border-left: 4px solid #2a6df4;
+            padding: 0.9rem 1.2rem;
+            border-radius: 10px;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8rem;
+        }
+        .note-item i {
+            color: #2a6df4;
+            margin-top: 0.2rem;
+            font-size: 0.9rem;
+        }
+        .note-item .note-content {
+            flex: 1;
+        }
+        .note-item .note-content p {
+            color: #1f2d48;
+            line-height: 1.5;
+        }
+        .note-item .note-tools {
+            font-size: 0.7rem;
+            color: #b0bdd6;
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .note-item .note-tools i {
+            cursor: pointer;
+            color: #b0bdd6;
+            font-size: 0.7rem;
+        }
+        .note-item .note-tools i:hover {
+            color: #e74c5e;
+        }
+
+        .list-container {
+            margin: 0.8rem 0 0.2rem 0;
+        }
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            padding: 0.4rem 0.2rem;
+            border-bottom: 1px solid #f0f4fc;
+            color: #1e2d47;
+        }
+        .list-item i {
+            color: #5f73a0;
+            width: 1.2rem;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+        .list-item .task-text {
+            flex: 1;
+        }
+        .list-item .tag {
+            background: #e8eef9;
+            padding: 0.05rem 0.7rem;
+            border-radius: 20px;
+            font-size: 0.65rem;
+            color: #2a4b7a;
+        }
+        .list-item .list-tools i {
+            color: #b0bdd6;
+            font-size: 0.7rem;
+            margin-left: 4px;
+            cursor: pointer;
+        }
+        .list-item .list-tools i:hover {
+            color: #e74c5e;
+        }
+
+        .empty-message {
+            color: #8b9ab8;
+            padding: 1.2rem 0.2rem;
+            font-style: italic;
+            font-size: 0.95rem;
+        }
+
+        .section-actions-main {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            padding-top: 12px;
+            border-top: 1px solid #f0f4fc;
+        }
+        .action-btn {
+            background: #f0f4fe;
+            border: 1px solid #d9e2f0;
+            padding: 0.25rem 1rem;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            color: #1f3b6a;
+            cursor: pointer;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .action-btn:hover {
+            background: #e2ebfa;
+            border-color: #b3c8e5;
+        }
+
+        .empty-state-hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: #fafcff;
+            border-radius: 18px;
+            border: 1px solid #eef2f8;
+        }
+        .empty-state-hero i {
+            font-size: 3rem;
+            color: #bcc9e0;
+            margin-bottom: 1.2rem;
+        }
+        .empty-state-hero p {
+            color: #4a6085;
+            font-size: 1.1rem;
+        }
+        .empty-state-hero .action-btn {
+            margin-top: 1.5rem;
+            font-size: 0.9rem;
+            padding: 0.5rem 2rem;
+        }
+
+        @media (max-width: 700px) {
+            .sidebar {
+                width: 240px;
+                min-width: 240px;
+            }
+            .sidebar.hidden {
+                transform: translateX(-100%);
+                margin-right: -240px;
+            }
+            .main {
+                padding: 1.5rem 1.2rem;
+            }
+            .main-header h1 {
+                font-size: 1.5rem;
+            }
+            .sidebar-toggle-wrapper {
+                padding: 0.8rem 1rem;
+            }
+            .sidebar-content {
+                padding-top: 4rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .sidebar {
+                width: 200px;
+                min-width: 200px;
+            }
+            .sidebar.hidden {
+                margin-right: -200px;
+            }
+            .sidebar-content {
+                padding-top: 3.8rem;
+            }
+        }
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #eef2f8;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c5d1e6;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar-toggle-wrapper">
+        <button id="toggleSidebarBtn"><i class="fas fa-bars"></i> <span>Notes</span></button>
     </div>
 
-    <script src="script.js"></script>
-  </body>
+    <div class="save-indicator" id="saveIndicator">
+        <i class="fas fa-check-circle"></i> Saved
+    </div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-content">
+            <div class="status-panel" id="statusPanel">
+                <div class="status-info">
+                    <i class="fas fa-cloud"></i>
+                    <span id="statusText">Cloud sync: <span class="disconnected">not configured</span></span>
+                </div>
+                <div class="status-actions">
+                    <button onclick="syncNow()" id="syncBtn"><i class="fas fa-sync"></i> Sync</button>
+                </div>
+            </div>
+
+            <div id="sidebarSectionsContainer"></div>
+            <button class="add-section-btn" id="addSectionBtn"><i class="fas fa-plus-circle"></i> Add section</button>
+        </div>
+    </aside>
+
+    <main class="main" id="mainContent">
+        <div class="main-header">
+            <h1><i class="fas fa-sticky-note"></i> Notes & Lists</h1>
+            <span class="badge" id="syncStatus">
+                <i class="fas fa-database"></i>
+                <span id="syncLabel">local</span>
+            </span>
+        </div>
+        <div id="mainSectionsContainer"></div>
+    </main>
+
+    <script>
+        // ============================================================
+        //  CONFIGURATION - Set your Vercel API URL here
+        // ============================================================
+        const VERCEL_API_URL = 'https://notes-7e9f690p1-drakenotes1.vercel.app/api/notes'; // ← CHANGE THIS
+
+        // ============================================================
+        //  DATA STATE
+        // ============================================================
+        let sections = [];
+        let nextId = 1;
+        let isSyncing = false;
+        let saveTimeout = null;
+        let isVercelConfigured = false;
+
+        const STORAGE_KEY = 'notesAppData';
+
+        // DOM refs
+        const sidebarContainer = document.getElementById('sidebarSectionsContainer');
+        const mainContainer = document.getElementById('mainSectionsContainer');
+        const addSectionBtn = document.getElementById('addSectionBtn');
+        const toggleBtn = document.getElementById('toggleSidebarBtn');
+        const sidebar = document.getElementById('sidebar');
+        const syncLabel = document.getElementById('syncLabel');
+        const statusText = document.getElementById('statusText');
+        const syncBtn = document.getElementById('syncBtn');
+        let sidebarVisible = true;
+
+        // ============================================================
+        //  VERCELL API FUNCTIONS
+        // ============================================================
+
+        async function loadFromVercel() {
+            try {
+                const response = await fetch(VERCEL_API_URL);
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        // Vercel function not deployed yet
+                        return null;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Error loading from Vercel:', error);
+                showSaveIndicator('Failed to load from cloud', true);
+                return null;
+            }
+        }
+
+        async function saveToVercel(data) {
+            try {
+                const response = await fetch(VERCEL_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || `HTTP ${response.status}`);
+                }
+
+                showSaveIndicator('Saved to cloud!');
+                updateSyncStatus('synced');
+                return true;
+            } catch (error) {
+                console.error('Error saving to Vercel:', error);
+                showSaveIndicator(`Save failed: ${error.message}`, true);
+                updateSyncStatus('unsynced');
+                return false;
+            }
+        }
+
+        // ============================================================
+        //  SYNC FUNCTIONS
+        // ============================================================
+
+        async function syncFromVercel() {
+            if (isSyncing) return;
+            isSyncing = true;
+            updateSyncStatus('syncing');
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing';
+
+            try {
+                const data = await loadFromVercel();
+                if (data && data.sections) {
+                    sections = data.sections || [];
+                    nextId = data.nextId || 1;
+                    render();
+                    showSaveIndicator('Loaded from cloud!');
+                    updateStatusPanel(true);
+                } else {
+                    // No data found in cloud, save current data
+                    await saveToVercel({ sections, nextId });
+                    updateStatusPanel(true);
+                }
+            } catch (error) {
+                console.error('Sync failed:', error);
+                showSaveIndicator('Sync failed', true);
+            } finally {
+                isSyncing = false;
+                updateSyncStatus('synced');
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync';
+            }
+        }
+
+        window.syncNow = async function() {
+            if (!isVercelConfigured) {
+                showSaveIndicator('Vercel API not configured. Check the URL.', true);
+                return;
+            }
+            await syncFromVercel();
+        };
+
+        // ============================================================
+        //  UI HELPERS
+        // ============================================================
+
+        function updateSyncStatus(status) {
+            const statusMap = {
+                'synced': '<i class="fas fa-check-circle synced"></i> synced',
+                'unsynced': '<i class="fas fa-exclamation-circle unsynced"></i> unsynced',
+                'syncing': '<i class="fas fa-spinner syncing"></i> syncing...',
+                'local': '<i class="fas fa-database"></i> local'
+            };
+            syncLabel.innerHTML = statusMap[status] || statusMap.local;
+        }
+
+        function updateStatusPanel(connected) {
+            if (connected) {
+                statusText.innerHTML = `Cloud sync: <span class="connected">connected</span>`;
+                isVercelConfigured = true;
+            } else {
+                statusText.innerHTML = `Cloud sync: <span class="disconnected">not configured</span>`;
+                isVercelConfigured = false;
+            }
+        }
+
+        function showSaveIndicator(message, isError = false) {
+            const indicator = document.getElementById('saveIndicator');
+            indicator.textContent = message;
+            indicator.className = 'save-indicator show';
+            if (isError) indicator.classList.add('error');
+
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                indicator.classList.remove('show');
+                indicator.classList.remove('error');
+            }, 3000);
+        }
+
+        function esc(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function genId() { return nextId++; }
+
+        // ============================================================
+        //  LOCAL STORAGE (fallback)
+        // ============================================================
+
+        function loadLocalData() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    sections = parsed.sections || [];
+                    nextId = parsed.nextId || 1;
+                }
+            } catch (e) {
+                console.warn('Failed to load local data', e);
+            }
+        }
+
+        function saveLocalData() {
+            try {
+                const data = { sections, nextId };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+            } catch (e) {
+                console.warn('Failed to save local data', e);
+            }
+        }
+
+        // ============================================================
+        //  RENDER FUNCTIONS
+        // ============================================================
+
+        function render() {
+            renderSidebar();
+            renderMain();
+            saveLocalData();
+
+            // Auto-save to Vercel if configured
+            if (isVercelConfigured && !isSyncing) {
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(() => {
+                    saveToVercel({ sections, nextId });
+                }, 1000);
+            }
+        }
+
+        function renderSidebar() {
+            if (!sidebarContainer) return;
+            if (sections.length === 0) {
+                sidebarContainer.innerHTML = '';
+                return;
+            }
+            let html = '';
+            sections.forEach((sec) => {
+                html += `<div class="section-group" data-section-id="${sec.id}">`;
+                html += `<div class="section-title">
+                            <span><i class="fas fa-folder-open" style="margin-right:6px;"></i> ${esc(sec.name)}</span>
+                            <span class="section-actions">
+                                <i class="fas fa-trash-alt" onclick="deleteSection(${sec.id})" title="delete section"></i>
+                                <i class="fas fa-plus-circle" onclick="addSubsection(${sec.id})" title="add subsection"></i>
+                            </span>
+                        </div>`;
+                html += `<ul class="subsection-list">`;
+                if (sec.subs && sec.subs.length > 0) {
+                    sec.subs.forEach(sub => {
+                        html += `<li><i class="fas fa-circle"></i> ${esc(sub)}</li>`;
+                    });
+                } else {
+                    html +=
+                        `<li style="color:#9aaccc; font-size:0.8rem; padding-left:1.2rem;"><i class="fas fa-ellipsis-h"></i> no subs</li>`;
+                }
+                html += `</ul>`;
+                html += `</div>`;
+            });
+            sidebarContainer.innerHTML = html;
+        }
+
+        function renderMain() {
+            if (!mainContainer) return;
+            if (sections.length === 0) {
+                mainContainer.innerHTML = `
+                            <div class="empty-state-hero">
+                                <i class="fas fa-pencil-alt"></i>
+                                <p>Start by adding a section<br><span style="font-size:0.9rem; color:#7a8aa8;">use the sidebar or the button below</span></p>
+                                <button class="action-btn" onclick="addSectionFromMain()" style="margin-top:1.5rem; font-size:0.9rem; padding:0.5rem 2rem;"><i class="fas fa-plus-circle"></i> Add section</button>
+                            </div>
+                        `;
+                return;
+            }
+            let html = '';
+            sections.forEach((sec) => {
+                html += `<div class="content-section" data-section-id="${sec.id}">`;
+                html += `<h3>
+                            <i class="fas fa-folder-open"></i> ${esc(sec.name)}
+                            <span class="section-tools">
+                                <i class="fas fa-trash-alt" onclick="deleteSection(${sec.id})" title="delete section"></i>
+                            </span>
+                        </h3>`;
+
+                if (sec.notes && sec.notes.length > 0) {
+                    sec.notes.forEach((note, ni) => {
+                        html += `<div class="note-item">
+                                    <i class="fas fa-pen-fancy"></i>
+                                    <div class="note-content">
+                                        <p>${esc(note)}</p>
+                                        <div class="note-tools">
+                                            <i class="fas fa-trash-alt" onclick="deleteNote(${sec.id}, ${ni})" title="delete note"></i>
+                                        </div>
+                                    </div>
+                                </div>`;
+                    });
+                } else {
+                    html += `<div class="empty-message"><i class="far fa-sticky-note"></i> No notes yet</div>`;
+                }
+
+                if (sec.listItems && sec.listItems.length > 0) {
+                    html += `<div class="list-container">`;
+                    sec.listItems.forEach((item, liIdx) => {
+                        const icon = item.done ? 'fa-check-circle' : 'fa-circle';
+                        const color = item.done ? '#2a6df4' : '#8b9ab8';
+                        html += `<div class="list-item">
+                                    <i class="fas ${icon}" style="color:${color};" onclick="toggleListItem(${sec.id}, ${liIdx})" title="toggle done"></i>
+                                    <span class="task-text">${esc(item.text)}</span>
+                                    <span class="tag">${item.done ? 'done' : 'pending'}</span>
+                                    <span class="list-tools">
+                                        <i class="fas fa-trash-alt" onclick="deleteListItem(${sec.id}, ${liIdx})" title="delete item"></i>
+                                    </span>
+                                </div>`;
+                    });
+                    html += `</div>`;
+                } else {
+                    html += `<div class="empty-message"><i class="fas fa-list-ul"></i> No list items</div>`;
+                }
+
+                html += `<div class="section-actions-main">
+                            <button class="action-btn" onclick="addNote(${sec.id})"><i class="fas fa-plus"></i> Add note</button>
+                            <button class="action-btn" onclick="addListItem(${sec.id})"><i class="fas fa-plus"></i> Add list item</button>
+                            <button class="action-btn" onclick="addSubsection(${sec.id})"><i class="fas fa-plus"></i> Subsection</button>
+                        </div>`;
+
+                html += `</div>`;
+            });
+            mainContainer.innerHTML = html;
+        }
+
+        // ============================================================
+        //  CRUD OPERATIONS
+        // ============================================================
+
+        window.addSectionFromMain = function() {
+            const name = prompt('Section name:');
+            if (name && name.trim()) {
+                sections.push({ id: genId(), name: name.trim(), subs: [], notes: [], listItems: [] });
+                render();
+            }
+        };
+
+        window.addSectionFromSidebar = function() {
+            const name = prompt('Section name:');
+            if (name && name.trim()) {
+                sections.push({ id: genId(), name: name.trim(), subs: [], notes: [], listItems: [] });
+                render();
+            }
+        };
+
+        window.deleteSection = function(id) {
+            if (!confirm('Delete this section and all its content?')) return;
+            sections = sections.filter(s => s.id !== id);
+            render();
+        };
+
+        window.addSubsection = function(id) {
+            const sec = sections.find(s => s.id === id);
+            if (!sec) return;
+            const sub = prompt('Subsection name:');
+            if (sub && sub.trim()) {
+                sec.subs.push(sub.trim());
+                render();
+            }
+        };
+
+        window.addNote = function(id) {
+            const sec = sections.find(s => s.id === id);
+            if (!sec) return;
+            const note = prompt('Note text:');
+            if (note && note.trim()) {
+                sec.notes.push(note.trim());
+                render();
+            }
+        };
+
+        window.deleteNote = function(id, noteIndex) {
+            const sec = sections.find(s => s.id === id);
+            if (!sec) return;
+            if (!confirm('Delete this note?')) return;
+            sec.notes.splice(noteIndex, 1);
+            render();
+        };
+
+        window.addListItem = function(id) {
+            const sec = sections.find(s => s.id === id);
+            if (!sec) return;
+            const text = prompt('List item text:');
+            if (text && text.trim()) {
+                sec.listItems.push({ text: text.trim(), done: false });
+                render();
+            }
+        };
+
+        window.deleteListItem = function(id, idx) {
+            const sec = sections.find(s => s.id === id);
+            if (!sec) return;
+            if (!confirm('Delete this list item?')) return;
+            sec.listItems.splice(idx, 1);
+            render();
+        };
+
+        window.toggleListItem = function(id, idx) {
+            const sec = sections.find(s => s.id === id);
+            if (!sec) return;
+            sec.listItems[idx].done = !sec.listItems[idx].done;
+            render();
+        };
+
+        // ============================================================
+        //  INITIALIZATION
+        // ============================================================
+
+        // Check if Vercel API URL is configured
+        if (VERCEL_API_URL && VERCEL_API_URL !== 'https://your-vercel-app.vercel.app/api/notes') {
+            updateStatusPanel(true);
+            isVercelConfigured = true;
+        } else {
+            updateStatusPanel(false);
+            isVercelConfigured = false;
+        }
+
+        // Load local data first
+        loadLocalData();
+
+        // Render
+        render();
+
+        // Try to sync from Vercel on load if configured
+        if (isVercelConfigured) {
+            setTimeout(() => {
+                syncFromVercel();
+            }, 500);
+        }
+
+        // Toggle sidebar
+        toggleBtn.addEventListener('click', function() {
+            sidebarVisible = !sidebarVisible;
+            sidebar.classList.toggle('hidden', !sidebarVisible);
+            toggleBtn.innerHTML = sidebarVisible ? '<i class="fas fa-bars"></i> <span>Notes</span>' :
+                '<i class="fas fa-chevron-right"></i> <span>Notes</span>';
+        });
+
+        addSectionBtn.addEventListener('click', window.addSectionFromSidebar);
+    </script>
+</body>
 </html>
