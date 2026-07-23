@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notes Studio</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div>
+            <p class="eyebrow">Personal workspace</p>
+            <h1>Notes Studio</h1>
+          </div>
+          <p class="sidebar-copy">
+            Build sections, capture notes, and track progress with configurable lists.
+          </p>
+        </div>
+
+        <button id="add-section-btn" class="primary-btn">+ New section</button>
+        <ul id="section-list" class="section-list"></ul>
+      </aside>
+
+      <main class="content">
+        <header class="content-header">
+          <div class="title-block">
+            <p class="eyebrow">Active section</p>
+            <input id="section-title-input" class="title-input" value="Select a section" />
+          </div>
+          <div class="header-actions">
+            <div class="create-menu-wrap">
+              <button id="create-menu-btn" class="primary-btn" aria-label="Create new">＋</button>
+              <div id="create-menu" class="create-menu" hidden>
+                <button type="button" class="menu-action" data-create-action="note">New note</button>
+                <button type="button" class="menu-action" data-create-action="list">New list</button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <section id="empty-state" class="empty-state">
+          <h2>Create your first section</h2>
+          <p>Use the sidebar to start organizing your notes and checklists.</p>
+        </section>
+
+        <section id="section-content" class="section-content"></section>
+      </main>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
