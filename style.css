@@ -368,6 +368,38 @@ body {
 .list-box:hover {
     box-shadow: 0 8px 30px rgba(0,0,0,0.6);
 }
+
+/* ── Top-right corner delete button ── */
+.box-delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 10;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #1a1a12;
+    border: 1px solid #3a3a2a;
+    color: #7a7a5a;
+    font-size: 0.65rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    line-height: 1;
+}
+.note-box:hover .box-delete-btn,
+.list-box:hover .box-delete-btn {
+    opacity: 1;
+}
+.box-delete-btn:hover {
+    background: #e74c5e;
+    border-color: #e74c5e;
+    color: #fff;
+}
+
 .note-box.dragging,
 .list-box.dragging {
     opacity: 0.8;

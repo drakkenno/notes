@@ -142,12 +142,12 @@ function renderMain() {
                     <div class="note-box" id="box-${sec.id}" 
                          style="cursor: default; position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;"
                          data-section-id="${sec.id}">
+                        <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"><i class="fas fa-times"></i></button>
                         <div class="box-title">
                             <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                             <i class="fas fa-folder-open"></i>
                             <span>${capitalize(sec.name)}</span>
                             <span class="box-actions">
-                                <i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i>
                             </span>
                         </div>
                         <div class="note-content" style="color: #7a7a5a; font-size: 0.85rem;">
@@ -210,6 +210,7 @@ function renderMain() {
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
                              data-type="subNote" data-sub-name="${esc(sub.name)}" data-index="${ni}">
+                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubNote('${sub.name}', ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
@@ -217,9 +218,6 @@ function renderMain() {
                                        onchange="updateSubNoteTitle('${sub.name}', ${ni}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
-                                <span class="box-actions">
-                                    <i class="fas fa-trash-alt" onclick="deleteSubNote('${sub.name}', ${ni})" title="Delete note"></i>
-                                </span>
                             </div>
                             <div class="note-content">
                                 <textarea class="editable-content" 
@@ -246,6 +244,7 @@ function renderMain() {
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
                              data-type="subList" data-sub-name="${esc(sub.name)}" data-index="${liIdx}">
+                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubList('${sub.name}', ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
@@ -258,7 +257,6 @@ function renderMain() {
                                 <span class="box-actions">
                                     <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubListLocationInSub('${sub.name}', ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
                                     <i class="fas fa-plus" onclick="addSubItemToSub('${sub.name}', ${liIdx})" title="Add item"></i>
-                                    <i class="fas fa-trash-alt" onclick="deleteSubList('${sub.name}', ${liIdx})" title="Delete list"></i>
                                 </span>
                             </div>
                             <div class="list-items" style="max-height:calc(100% - 60px); overflow-y:auto;">
@@ -326,6 +324,7 @@ function renderMain() {
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
                              data-type="note" data-section-id="${sec.id}" data-index="${ni}">
+                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteNote(${sec.id}, ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
@@ -333,9 +332,6 @@ function renderMain() {
                                        onchange="updateNoteTitle(${sec.id}, ${ni}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
-                                <span class="box-actions">
-                                    <i class="fas fa-trash-alt" onclick="deleteNote(${sec.id}, ${ni})" title="Delete note"></i>
-                                </span>
                             </div>
                             <div class="note-content">
                                 <textarea class="editable-content" 
@@ -362,6 +358,7 @@ function renderMain() {
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
                              data-type="list" data-section-id="${sec.id}" data-index="${liIdx}">
+                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteList(${sec.id}, ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
@@ -374,7 +371,6 @@ function renderMain() {
                                 <span class="box-actions">
                                     <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setListLocation(${sec.id}, ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
                                     <i class="fas fa-plus" onclick="addSubItem(${sec.id}, ${liIdx})" title="Add item"></i>
-                                    <i class="fas fa-trash-alt" onclick="deleteList(${sec.id}, ${liIdx})" title="Delete list"></i>
                                 </span>
                             </div>
                             <div class="list-items" style="max-height:calc(100% - 60px); overflow-y:auto;">
