@@ -460,13 +460,19 @@ body {
     line-height: 1.6;
     outline: none;
     width: 100%;
-    min-height: 30px;
-    max-height: 200px;
+    min-height: 60px;
     font-family: inherit;
     resize: vertical;
     padding: 0.2rem;
     border-radius: 4px;
     transition: 0.15s;
+    /* auto-height up to a sensible cap */
+    max-height: min(60vh, 500px);
+    field-sizing: content; /* Chrome 123+ native auto-resize */
+}
+/* Responsive mode: textarea grows with content freely */
+.box-grid--responsive .note-box .note-content .editable-content {
+    max-height: min(70vh, 600px);
 }
 .note-box .note-content .editable-content:focus {
     background: #1a1a12;
@@ -488,8 +494,9 @@ body {
 .list-box .sub-list-item {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
-    padding: 0.3rem 0.5rem;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+    padding: 0.35rem 0.5rem;
     background: #1a1a12;
     border-radius: 6px;
     border: 1px solid #1a1a12;
@@ -502,12 +509,15 @@ body {
     color: #7a7a5a;
     cursor: pointer;
     font-size: 0.7rem;
+    flex-shrink: 0;
 }
 .list-box .sub-list-item i:hover {
     color: #f5e56b;
 }
+/* Text input: always on its own line so text is fully visible */
 .list-box .sub-list-item .editable-item {
-    flex: 1;
+    flex: 1 1 100%;
+    min-width: 0;
     background: transparent;
     border: none;
     color: #d4c45a;
@@ -516,10 +526,29 @@ body {
     padding: 0.1rem 0.2rem;
     border-radius: 4px;
     transition: 0.15s;
+    order: 2;   /* always after the check icon */
 }
 .list-box .sub-list-item .editable-item:focus {
     background: #0b0b0b;
     border: 1px solid #2a2a1a;
+}
+/* Check/circle icon stays left on row 1 */
+.list-box .sub-list-item > i:first-child {
+    order: 1;
+    flex-shrink: 0;
+    font-size: 0.8rem;
+}
+/* Badges and controls go below the text on row 2 */
+.list-box .sub-list-item .item-rating,
+.list-box .sub-list-item .item-tag,
+.list-box .sub-list-item .item-delete,
+.list-box .sub-list-item .location-badge {
+    order: 3;
+    flex-shrink: 0;
+}
+/* map icon (not location-badge link) */
+.list-box .sub-list-item i.fa-map-marker-alt {
+    order: 3;
 }
 .list-box .sub-list-item .item-tag {
     font-size: 0.6rem;
@@ -601,6 +630,7 @@ body {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+    flex-shrink: 0;
 }
 .location-badge:hover {
     background: rgba(231, 76, 94, 0.25);
@@ -608,8 +638,13 @@ body {
     color: #ff6b7d;
     transform: translateY(-1px);
 }
+/* Compact badge = icon only — must never clip the glyph */
 .location-badge.compact {
-    padding: 0.1rem 0.35rem;
+    padding: 0.15rem 0.4rem;
+    max-width: none;
+    overflow: visible;
+    white-space: normal;
+    line-height: 1;
 }
 .box-actions i.has-location,
 .sub-list-item i.has-location {
