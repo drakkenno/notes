@@ -14,6 +14,68 @@ function render() {
     }
 }
 
+function renderRatingStars(rating, onclickStr) {
+    const currentRating = rating || 0;
+    let starsHtml = `<span class="item-rating" title="Rating: ${currentRating}/5">`;
+    for (let r = 1; r <= 5; r++) {
+        let iconClass = 'far fa-star inactive';
+        if (currentRating >= r) {
+            iconClass = 'fas fa-star active';
+        } else if (currentRating === r - 0.5) {
+            iconClass = 'fas fa-star-half-alt active';
+        }
+        
+        const halfVal = r - 0.5;
+        const fullVal = r;
+        const halfClick = onclickStr.replace('RATING_PLACEHOLDER', currentRating === halfVal ? 0 : halfVal);
+        const fullClick = onclickStr.replace('RATING_PLACEHOLDER', currentRating === fullVal ? 0 : fullVal);
+        
+        starsHtml += `<span class="star-box"><i class="${iconClass}"></i><span class="star-half left" onclick="event.stopPropagation(); ${halfClick}" title="${halfVal} star${halfVal > 1 ? 's' : ''}"></span><span class="star-half right" onclick="event.stopPropagation(); ${fullClick}" title="${fullVal} star${fullVal > 1 ? 's' : ''}"></span></span>`;
+    }
+    starsHtml += `</span>`;
+    return starsHtml;
+}
+
+function renderListRatingBadge(list) {
+    if (!list || !list.items || list.items.length === 0) return '';
+    const ratedItems = list.items.filter(i => i.rating && i.rating > 0);
+    if (ratedItems.length === 0) return '';
+    const avg = (ratedItems.reduce((acc, i) => acc + i.rating, 0) / ratedItems.length).toFixed(1);
+    return `<span class="list-rating-badge" title="Average rating: ${avg} / 5 (${ratedItems.length}/${list.items.length} rated)"><i class="fas fa-star"></i> ${avg}</span>`;
+}
+
+function getGoogleMapsUrl(location) {
+    if (!location || !location.trim()) return '#';
+    const loc = location.trim();
+    if (/^(https?:\/\/|www\.)/i.test(loc)) {
+        return loc.startsWith('www.') ? `https://${loc}` : loc;
+    }
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc)}`;
+}
+
+function getDisplayLocation(location) {
+    if (!location || !location.trim()) return '';
+    const loc = location.trim();
+    if (/^(https?:\/\/|www\.)/i.test(loc)) {
+        if (loc.includes('goo.gl') || loc.includes('maps')) {
+            return 'Google Maps';
+        }
+        return 'Map Link';
+    }
+    return loc.length > 20 ? loc.substring(0, 18) + '...' : loc;
+}
+
+function renderLocationBadge(location, isCompact = false) {
+    if (!location || !location.trim()) return '';
+    const loc = location.trim();
+    const mapUrl = getGoogleMapsUrl(loc);
+    const displayText = getDisplayLocation(loc);
+    if (isCompact) {
+        return `<a class="location-badge compact" href="${esc(mapUrl)}" target="_blank" title="Google Maps: ${esc(loc)}" onclick="event.stopPropagation(); window.open('${esc(mapUrl)}', '_blank'); return false;"><i class="fas fa-map-marker-alt"></i></a>`;
+    }
+    return `<a class="location-badge" href="${esc(mapUrl)}" target="_blank" title="Open in Google Maps: ${esc(loc)}" onclick="event.stopPropagation(); window.open('${esc(mapUrl)}', '_blank'); return false;"><i class="fas fa-map-marker-alt"></i> <span>${esc(displayText)}</span></a>`;
+}
+
 function renderMain() {
     if (!mainContainer) return;
     
@@ -172,6 +234,8 @@ function renderMain() {
                     const y = list.y !== undefined ? list.y : (10 + Math.floor(liIdx / 3) * 230);
                     const width = list.width || 320;
                     const height = list.height || 200;
+                    const ratingBadge = renderListRatingBadge(list);
+                    const listLocBadge = renderLocationBadge(list.location);
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
                              data-type="subList" data-sub-name="${esc(sub.name)}" data-index="${liIdx}"
@@ -183,7 +247,10 @@ function renderMain() {
                                        onchange="updateSubListTitle('${sub.name}', ${liIdx}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
+                                ${listLocBadge}
+                                ${ratingBadge}
                                 <span class="box-actions">
+                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubListLocationInSub('${sub.name}', ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
                                     <i class="fas fa-plus" onclick="addSubItemToSub('${sub.name}', ${liIdx})" title="Add item"></i>
                                     <i class="fas fa-trash-alt" onclick="deleteSubList('${sub.name}', ${liIdx})" title="Delete list"></i>
                                 </span>
@@ -195,6 +262,8 @@ function renderMain() {
                         list.items.forEach((item, subIdx) => {
                             const icon = item.done ? 'fa-check-circle' : 'fa-circle';
                             const color = item.done ? '#f5e56b' : '#7a7a5a';
+                            const stars = renderRatingStars(item.rating, `setSubItemRatingInSub('${sub.name}', ${liIdx}, ${subIdx}, RATING_PLACEHOLDER)`);
+                            const itemLocBadge = renderLocationBadge(item.location, true);
                             html += `
                                 <div class="sub-list-item">
                                     <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItemInSub('${sub.name}', ${liIdx}, ${subIdx})" title="Toggle done"></i>
@@ -202,7 +271,10 @@ function renderMain() {
                                            onchange="updateSubItemInSub('${sub.name}', ${liIdx}, ${subIdx}, this.value)"
                                            onfocus="this.select()"
                                            style="flex:1; background:transparent; border:none; color:#d4c45a; font-size:0.9rem; outline:none; padding:0.1rem 0.2rem; border-radius:4px;">
+                                    ${itemLocBadge}
+                                    ${stars}
                                     <span class="item-tag">${item.done ? 'done' : 'pending'}</span>
+                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubItemLocationInSub('${sub.name}', ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
                                     <i class="fas fa-times item-delete" onclick="deleteSubItemFromSub('${sub.name}', ${liIdx}, ${subIdx})" title="Delete item"></i>
                                 </div>
                             `;
@@ -280,6 +352,8 @@ function renderMain() {
                     const y = list.y !== undefined ? list.y : (10 + Math.floor(liIdx / 3) * 230);
                     const width = list.width || 320;
                     const height = list.height || 200;
+                    const ratingBadge = renderListRatingBadge(list);
+                    const listLocBadge = renderLocationBadge(list.location);
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
                              data-type="list" data-section-id="${sec.id}" data-index="${liIdx}"
@@ -291,7 +365,10 @@ function renderMain() {
                                        onchange="updateListTitle(${sec.id}, ${liIdx}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
+                                ${listLocBadge}
+                                ${ratingBadge}
                                 <span class="box-actions">
+                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setListLocation(${sec.id}, ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
                                     <i class="fas fa-plus" onclick="addSubItem(${sec.id}, ${liIdx})" title="Add item"></i>
                                     <i class="fas fa-trash-alt" onclick="deleteList(${sec.id}, ${liIdx})" title="Delete list"></i>
                                 </span>
@@ -303,6 +380,8 @@ function renderMain() {
                         list.items.forEach((item, subIdx) => {
                             const icon = item.done ? 'fa-check-circle' : 'fa-circle';
                             const color = item.done ? '#f5e56b' : '#7a7a5a';
+                            const stars = renderRatingStars(item.rating, `setSubItemRating(${sec.id}, ${liIdx}, ${subIdx}, RATING_PLACEHOLDER)`);
+                            const itemLocBadge = renderLocationBadge(item.location, true);
                             html += `
                                 <div class="sub-list-item">
                                     <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Toggle done"></i>
@@ -310,7 +389,10 @@ function renderMain() {
                                            onchange="updateSubItem(${sec.id}, ${liIdx}, ${subIdx}, this.value)"
                                            onfocus="this.select()"
                                            style="flex:1; background:transparent; border:none; color:#d4c45a; font-size:0.9rem; outline:none; padding:0.1rem 0.2rem; border-radius:4px;">
+                                    ${itemLocBadge}
+                                    ${stars}
                                     <span class="item-tag">${item.done ? 'done' : 'pending'}</span>
+                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setItemLocation(${sec.id}, ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
                                     <i class="fas fa-times item-delete" onclick="deleteSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Delete item"></i>
                                 </div>
                             `;

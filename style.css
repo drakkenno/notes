@@ -495,6 +495,96 @@ body {
     color: #b8a84a;
     border: 1px solid #2a2a1a;
 }
+.list-box .sub-list-item .item-rating {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin: 0 0.2rem;
+}
+.list-box .sub-list-item .item-rating .star-box {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.list-box .sub-list-item .item-rating .star-half {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 50%;
+    z-index: 2;
+    cursor: pointer;
+}
+.list-box .sub-list-item .item-rating .star-half.left {
+    left: 0;
+}
+.list-box .sub-list-item .item-rating .star-half.right {
+    right: 0;
+}
+.list-box .sub-list-item .item-rating i {
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: transform 0.15s ease, color 0.15s ease;
+}
+.list-box .sub-list-item .item-rating i.active {
+    color: #f5e56b;
+    text-shadow: 0 0 6px rgba(245, 229, 107, 0.4);
+}
+.list-box .sub-list-item .item-rating i.inactive {
+    color: #3a3a2a;
+}
+.list-box .sub-list-item .item-rating .star-box:hover i {
+    transform: scale(1.25);
+    color: #ffe066;
+}
+.list-box .list-rating-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #f5e56b;
+    background: rgba(245, 229, 107, 0.1);
+    border: 1px solid rgba(245, 229, 107, 0.25);
+    padding: 0.1rem 0.4rem;
+    border-radius: 12px;
+    margin-right: 0.4rem;
+}
+.location-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #e74c5e;
+    background: rgba(231, 76, 94, 0.12);
+    border: 1px solid rgba(231, 76, 94, 0.3);
+    padding: 0.1rem 0.45rem;
+    border-radius: 12px;
+    text-decoration: none;
+    transition: 0.15s ease;
+    max-width: 120px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.location-badge:hover {
+    background: rgba(231, 76, 94, 0.25);
+    border-color: #e74c5e;
+    color: #ff6b7d;
+    transform: translateY(-1px);
+}
+.location-badge.compact {
+    padding: 0.1rem 0.35rem;
+}
+.box-actions i.has-location,
+.sub-list-item i.has-location {
+    color: #e74c5e !important;
+}
+.box-actions i.has-location:hover,
+.sub-list-item i.has-location:hover {
+    color: #ff6b7d !important;
+}
 .list-box .sub-list-item .item-delete {
     color: #7a7a5a;
     cursor: pointer;

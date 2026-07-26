@@ -135,7 +135,7 @@ window.addSubItem = function(sectionId, listIndex) {
     const list = sec.items[listIndex];
     if (!list) return;
     if (!list.items) list.items = [];
-    list.items.push({ text: 'New Item', done: false });
+    list.items.push({ text: 'New Item', done: false, rating: 0 });
     render();
     setTimeout(() => {
         const itemInputs = document.querySelectorAll('.list-box .editable-item');
@@ -161,6 +161,15 @@ window.toggleSubItem = function(sectionId, listIndex, subIndex) {
     const list = sec.items[listIndex];
     if (!list) return;
     list.items[subIndex].done = !list.items[subIndex].done;
+    render();
+};
+
+window.setSubItemRating = function(sectionId, listIndex, subIndex, rating) {
+    const sec = sections.find(s => s.id === sectionId);
+    if (!sec) return;
+    const list = sec.items[listIndex];
+    if (!list || !list.items || !list.items[subIndex]) return;
+    list.items[subIndex].rating = rating;
     render();
 };
 
@@ -238,7 +247,7 @@ window.addSubItemToSub = function(subName, listIndex) {
     const list = sub.items[listIndex];
     if (!list) return;
     if (!list.items) list.items = [];
-    list.items.push({ text: 'New Item', done: false });
+    list.items.push({ text: 'New Item', done: false, rating: 0 });
     render();
     setTimeout(() => {
         const itemInputs = document.querySelectorAll('.list-box .editable-item');
@@ -269,4 +278,73 @@ window.toggleSubItemInSub = function(subName, listIndex, subIndex) {
     if (!list) return;
     list.items[subIndex].done = !list.items[subIndex].done;
     render();
+};
+
+window.setSubItemRatingInSub = function(subName, listIndex, subIndex, rating) {
+    const sec = sections.find(s => s.id === selectedSectionId);
+    if (!sec) return;
+    const sub = sec.subs.find(s => s.name === subName);
+    if (!sub) return;
+    const list = sub.items[listIndex];
+    if (!list || !list.items || !list.items[subIndex]) return;
+    list.items[subIndex].rating = rating;
+    render();
+};
+
+// ============================================================
+//  LOCATION HANDLERS
+// ============================================================
+
+window.setItemLocation = function(sectionId, listIndex, subIndex) {
+    const sec = sections.find(s => s.id === sectionId);
+    if (!sec) return;
+    const list = sec.items[listIndex];
+    if (!list || !list.items || !list.items[subIndex]) return;
+    const item = list.items[subIndex];
+    const loc = prompt('Paste Google Maps link (e.g. https://maps.app.goo.gl/...) or address:', item.location || '');
+    if (loc !== null) {
+        item.location = loc.trim();
+        render();
+    }
+};
+
+window.setSubItemLocationInSub = function(subName, listIndex, subIndex) {
+    const sec = sections.find(s => s.id === selectedSectionId);
+    if (!sec) return;
+    const sub = sec.subs.find(s => s.name === subName);
+    if (!sub) return;
+    const list = sub.items[listIndex];
+    if (!list || !list.items || !list.items[subIndex]) return;
+    const item = list.items[subIndex];
+    const loc = prompt('Paste Google Maps link (e.g. https://maps.app.goo.gl/...) or address:', item.location || '');
+    if (loc !== null) {
+        item.location = loc.trim();
+        render();
+    }
+};
+
+window.setListLocation = function(sectionId, listIndex) {
+    const sec = sections.find(s => s.id === sectionId);
+    if (!sec) return;
+    const list = sec.items[listIndex];
+    if (!list) return;
+    const loc = prompt('Paste Google Maps link (e.g. https://maps.app.goo.gl/...) or address for this list:', list.location || '');
+    if (loc !== null) {
+        list.location = loc.trim();
+        render();
+    }
+};
+
+window.setSubListLocationInSub = function(subName, listIndex) {
+    const sec = sections.find(s => s.id === selectedSectionId);
+    if (!sec) return;
+    const sub = sec.subs.find(s => s.name === subName);
+    if (!sub) return;
+    const list = sub.items[listIndex];
+    if (!list) return;
+    const loc = prompt('Paste Google Maps link (e.g. https://maps.app.goo.gl/...) or address for this list:', list.location || '');
+    if (loc !== null) {
+        list.location = loc.trim();
+        render();
+    }
 };
