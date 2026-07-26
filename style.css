@@ -522,11 +522,18 @@ body {
     border: none;
     color: #d4c45a;
     font-size: 0.9rem;
+    font-family: inherit;
+    line-height: 1.4;
     outline: none;
     padding: 0.1rem 0.2rem;
     border-radius: 4px;
-    transition: 0.15s;
+    transition: background 0.15s, border 0.15s;
     order: 2;   /* always after the check icon */
+    /* textarea-specific: grow with content, no scrollbar/handle */
+    resize: none;
+    overflow: hidden;
+    field-sizing: content;  /* Chrome 123+ native auto-height */
+    min-height: 1.4em;
 }
 .list-box .sub-list-item .editable-item:focus {
     background: #0b0b0b;

@@ -14,6 +14,14 @@ function render() {
     }
 }
 
+// Auto-resize every textarea.editable-item to its content height
+function autoResizeTextareas() {
+    document.querySelectorAll('textarea.editable-item').forEach(ta => {
+        ta.style.height = 'auto';
+        ta.style.height = ta.scrollHeight + 'px';
+    });
+}
+
 function renderRatingStars(rating, onclickStr) {
     const currentRating = rating || 0;
     let starsHtml = `<span class="item-rating" title="Rating: ${currentRating}/5">`;
@@ -265,10 +273,10 @@ function renderMain() {
                             html += `
                                 <div class="sub-list-item">
                                     <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItemInSub('${sub.name}', ${liIdx}, ${subIdx})" title="Toggle done"></i>
-                                    <input class="editable-item" value="${esc(item.text)}" 
-                                           onchange="updateSubItemInSub('${sub.name}', ${liIdx}, ${subIdx}, this.value)"
-                                           onfocus="this.select()"
-                                           style="flex:1; background:transparent; border:none; color:#d4c45a; font-size:0.9rem; outline:none; padding:0.1rem 0.2rem; border-radius:4px;">
+                                    <textarea class="editable-item" rows="1"
+                                              onchange="updateSubItemInSub('${sub.name}', ${liIdx}, ${subIdx}, this.value)"
+                                              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+                                              onfocus="this.select()">${esc(item.text)}</textarea>
                                     ${itemLocBadge}
                                     ${stars}
                                     <span class="item-tag">${item.done ? 'done' : 'pending'}</span>
@@ -381,10 +389,10 @@ function renderMain() {
                             html += `
                                 <div class="sub-list-item">
                                     <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Toggle done"></i>
-                                    <input class="editable-item" value="${esc(item.text)}" 
-                                           onchange="updateSubItem(${sec.id}, ${liIdx}, ${subIdx}, this.value)"
-                                           onfocus="this.select()"
-                                           style="flex:1; background:transparent; border:none; color:#d4c45a; font-size:0.9rem; outline:none; padding:0.1rem 0.2rem; border-radius:4px;">
+                                    <textarea class="editable-item" rows="1"
+                                              onchange="updateSubItem(${sec.id}, ${liIdx}, ${subIdx}, this.value)"
+                                              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+                                              onfocus="this.select()">${esc(item.text)}</textarea>
                                     ${itemLocBadge}
                                     ${stars}
                                     <span class="item-tag">${item.done ? 'done' : 'pending'}</span>
@@ -443,6 +451,8 @@ function renderMain() {
     
     html += `</div>`;
     mainContainer.innerHTML = html;
+    // Size every item textarea to its content
+    setTimeout(autoResizeTextareas, 10);
 }
 
 // ============================================================
