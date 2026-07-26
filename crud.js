@@ -79,7 +79,8 @@ window.addNoteToSection = function(sectionId) {
     const sec = sections.find(s => s.id === sectionId);
     if (!sec) return;
     if (!sec.notes) sec.notes = [];
-    sec.notes.push({ title: 'New Note', content: '' });
+    const ni = sec.notes.length;
+    sec.notes.push({ title: 'New Note', content: '', x: 10 + (ni * 20) % 200, y: 10 + (ni * 20) % 200, width: 300, height: 160 });
     render();
     setTimeout(() => {
         const titleInputs = document.querySelectorAll('.note-box .editable-title');
@@ -105,7 +106,8 @@ window.addListToSection = function(sectionId) {
     const sec = sections.find(s => s.id === sectionId);
     if (!sec) return;
     if (!sec.items) sec.items = [];
-    sec.items.push({ title: 'New List', items: [] });
+    const liIdx = sec.items.length;
+    sec.items.push({ title: 'New List', items: [], x: 340 + (liIdx * 20) % 200, y: 10 + (liIdx * 20) % 200, width: 320, height: 200 });
     render();
     setTimeout(() => {
         const titleInputs = document.querySelectorAll('.list-box .editable-title');
@@ -172,7 +174,8 @@ window.addSubNote = function(subName) {
     const sub = sec.subs.find(s => s.name === subName);
     if (!sub) return;
     if (!sub.notes) sub.notes = [];
-    sub.notes.push({ title: 'New Note', content: '' });
+    const ni = sub.notes.length;
+    sub.notes.push({ title: 'New Note', content: '', x: 10 + (ni * 20) % 200, y: 10 + (ni * 20) % 200, width: 300, height: 160 });
     render();
     setTimeout(() => {
         const titleInputs = document.querySelectorAll('.note-box .editable-title');
@@ -202,7 +205,8 @@ window.addSubList = function(subName) {
     const sub = sec.subs.find(s => s.name === subName);
     if (!sub) return;
     if (!sub.items) sub.items = [];
-    sub.items.push({ title: 'New List', items: [] });
+    const liIdx = sub.items.length;
+    sub.items.push({ title: 'New List', items: [], x: 340 + (liIdx * 20) % 200, y: 10 + (liIdx * 20) % 200, width: 320, height: 200 });
     render();
     setTimeout(() => {
         const titleInputs = document.querySelectorAll('.list-box .editable-title');

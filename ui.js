@@ -118,22 +118,29 @@ function renderMain() {
                 return;
             }
             
-            html += `<div class="empty-state-hero" style="position: relative; transform: none; margin: 2rem auto; width: 80%; max-width: 500px;">
-                        <i class="fas fa-folder-open"></i>
-                        <p>Subsection: ${capitalize(sub.name)}<br><span style="font-size:0.9rem; color:#7a7a5a;">Add notes and lists below</span></p>
-                    </div>`;
+            const hasSubNotes = sub.notes && sub.notes.length > 0;
+            const hasSubItems = sub.items && sub.items.length > 0;
+            
+            if (!hasSubNotes && !hasSubItems) {
+                html += `<div class="empty-state-hero" style="position: relative; transform: none; margin: 2rem auto; width: 80%; max-width: 500px;">
+                            <i class="fas fa-folder-open"></i>
+                            <p>Subsection: ${capitalize(sub.name)}<br><span style="font-size:0.9rem; color:#7a7a5a;">Add notes and lists below</span></p>
+                        </div>`;
+            }
             
             html += `<div class="box-grid" id="boxGrid">`;
-            let offsetY = 10;
             
             // Subsection notes
-            if (sub.notes && sub.notes.length > 0) {
+            if (hasSubNotes) {
                 sub.notes.forEach((note, ni) => {
-                    const width = 300 + (ni % 3) * 30;
-                    const height = 160 + (ni % 4) * 20;
+                    const x = note.x !== undefined ? note.x : (10 + (ni * 30) % 350);
+                    const y = note.y !== undefined ? note.y : (10 + Math.floor(ni / 3) * 190);
+                    const width = note.width || 300;
+                    const height = note.height || 160;
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
-                             style="position:absolute; left:${10 + (ni * 15) % 350}px; top:${offsetY}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;">
+                             data-type="subNote" data-sub-name="${esc(sub.name)}" data-index="${ni}"
+                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
@@ -155,18 +162,20 @@ function renderMain() {
                             </div>
                         </div>
                     `;
-                    offsetY += 30;
                 });
             }
             
             // Subsection lists
-            if (sub.items && sub.items.length > 0) {
+            if (hasSubItems) {
                 sub.items.forEach((list, liIdx) => {
-                    const width = 320 + (liIdx % 3) * 30;
-                    const height = 200 + (liIdx % 4) * 20;
+                    const x = list.x !== undefined ? list.x : (350 + (liIdx * 30) % 350);
+                    const y = list.y !== undefined ? list.y : (10 + Math.floor(liIdx / 3) * 230);
+                    const width = list.width || 320;
+                    const height = list.height || 200;
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
-                             style="position:absolute; left:${350 + (liIdx * 20) % 300}px; top:${offsetY}px; width:${width}px; height:${height}px; min-width:200px; min-height:150px;">
+                             data-type="subList" data-sub-name="${esc(sub.name)}" data-index="${liIdx}"
+                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:150px;">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
@@ -210,7 +219,6 @@ function renderMain() {
                             </div>
                         </div>
                     `;
-                    offsetY += 30;
                 });
             }
             html += `</div>`;
@@ -229,16 +237,18 @@ function renderMain() {
         } else {
             // Show parent section content
             html += `<div class="box-grid" id="boxGrid">`;
-            let offsetY = 10;
             
             // Section notes
             if (sec.notes && sec.notes.length > 0) {
                 sec.notes.forEach((note, ni) => {
-                    const width = 300 + (ni % 3) * 30;
-                    const height = 160 + (ni % 4) * 20;
+                    const x = note.x !== undefined ? note.x : (10 + (ni * 30) % 350);
+                    const y = note.y !== undefined ? note.y : (10 + Math.floor(ni / 3) * 190);
+                    const width = note.width || 300;
+                    const height = note.height || 160;
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
-                             style="position:absolute; left:${10 + (ni * 15) % 350}px; top:${offsetY}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;">
+                             data-type="note" data-section-id="${sec.id}" data-index="${ni}"
+                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
@@ -260,18 +270,20 @@ function renderMain() {
                             </div>
                         </div>
                     `;
-                    offsetY += 30;
                 });
             }
             
             // Section lists
             if (sec.items && sec.items.length > 0) {
                 sec.items.forEach((list, liIdx) => {
-                    const width = 320 + (liIdx % 3) * 30;
-                    const height = 200 + (liIdx % 4) * 20;
+                    const x = list.x !== undefined ? list.x : (350 + (liIdx * 30) % 350);
+                    const y = list.y !== undefined ? list.y : (10 + Math.floor(liIdx / 3) * 230);
+                    const width = list.width || 320;
+                    const height = list.height || 200;
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
-                             style="position:absolute; left:${350 + (liIdx * 20) % 300}px; top:${offsetY}px; width:${width}px; height:${height}px; min-width:200px; min-height:150px;">
+                             data-type="list" data-section-id="${sec.id}" data-index="${liIdx}"
+                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:150px;">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
@@ -315,7 +327,6 @@ function renderMain() {
                             </div>
                         </div>
                     `;
-                    offsetY += 30;
                 });
             }
             html += `</div>`;
@@ -482,6 +493,62 @@ function makeDraggable() {
     });
 }
 
+function updateItemPosition(data, x, y) {
+    if (!data) return;
+    const { type, sectionId, subName, index } = data;
+    
+    if (type === 'section' || (sectionId !== null && type === undefined)) {
+        const sec = sections.find(s => s.id === sectionId);
+        if (sec) { sec.x = x; sec.y = y; }
+    } else if (type === 'note') {
+        const sec = sections.find(s => s.id === sectionId);
+        if (sec && sec.notes && sec.notes[index]) { sec.notes[index].x = x; sec.notes[index].y = y; }
+    } else if (type === 'list') {
+        const sec = sections.find(s => s.id === sectionId);
+        if (sec && sec.items && sec.items[index]) { sec.items[index].x = x; sec.items[index].y = y; }
+    } else if (type === 'subNote') {
+        const sec = sections.find(s => s.id === selectedSectionId);
+        if (sec && sec.subs) {
+            const sub = sec.subs.find(s => s.name === subName);
+            if (sub && sub.notes && sub.notes[index]) { sub.notes[index].x = x; sub.notes[index].y = y; }
+        }
+    } else if (type === 'subList') {
+        const sec = sections.find(s => s.id === selectedSectionId);
+        if (sec && sec.subs) {
+            const sub = sec.subs.find(s => s.name === subName);
+            if (sub && sub.items && sub.items[index]) { sub.items[index].x = x; sub.items[index].y = y; }
+        }
+    }
+}
+
+function updateItemSize(data, width, height) {
+    if (!data) return;
+    const { type, sectionId, subName, index } = data;
+    
+    if (type === 'section' || (sectionId !== null && type === undefined)) {
+        const sec = sections.find(s => s.id === sectionId);
+        if (sec) { sec.width = width; sec.height = height; }
+    } else if (type === 'note') {
+        const sec = sections.find(s => s.id === sectionId);
+        if (sec && sec.notes && sec.notes[index]) { sec.notes[index].width = width; sec.notes[index].height = height; }
+    } else if (type === 'list') {
+        const sec = sections.find(s => s.id === sectionId);
+        if (sec && sec.items && sec.items[index]) { sec.items[index].width = width; sec.items[index].height = height; }
+    } else if (type === 'subNote') {
+        const sec = sections.find(s => s.id === selectedSectionId);
+        if (sec && sec.subs) {
+            const sub = sec.subs.find(s => s.name === subName);
+            if (sub && sub.notes && sub.notes[index]) { sub.notes[index].width = width; sub.notes[index].height = height; }
+        }
+    } else if (type === 'subList') {
+        const sec = sections.find(s => s.id === selectedSectionId);
+        if (sec && sec.subs) {
+            const sub = sec.subs.find(s => s.name === subName);
+            if (sub && sub.items && sub.items[index]) { sub.items[index].width = width; sub.items[index].height = height; }
+        }
+    }
+}
+
 function startDrag(e) {
     e.preventDefault();
     e.stopPropagation();
@@ -499,7 +566,10 @@ function startDrag(e) {
         startY: e.clientY,
         startLeft: rect.left - (containerRect ? containerRect.left : 0),
         startTop: rect.top - (containerRect ? containerRect.top : 0),
-        sectionId: box.dataset.sectionId ? parseInt(box.dataset.sectionId) : null
+        type: box.dataset.type || (box.dataset.sectionId ? 'section' : null),
+        sectionId: box.dataset.sectionId ? parseInt(box.dataset.sectionId) : null,
+        subName: box.dataset.subName || null,
+        index: box.dataset.index !== undefined ? parseInt(box.dataset.index) : null
     };
     
     box.classList.add('dragging');
@@ -510,32 +580,16 @@ function startDrag(e) {
 function onDrag(e) {
     if (!dragData) return;
     
-    const container = document.getElementById('boxGrid') || document.querySelector('.box-grid');
-    const containerRect = container ? container.getBoundingClientRect() : null;
-    
     const dx = e.clientX - dragData.startX;
     const dy = e.clientY - dragData.startY;
     
-    let newX = dragData.startLeft + dx;
-    let newY = dragData.startTop + dy;
-    
-    // Keep within container bounds
-    if (containerRect) {
-        newX = Math.max(0, Math.min(newX, containerRect.width - 200));
-        newY = Math.max(0, Math.min(newY, containerRect.height - 120));
-    }
+    let newX = Math.max(0, dragData.startLeft + dx);
+    let newY = Math.max(0, dragData.startTop + dy);
     
     dragData.box.style.left = newX + 'px';
     dragData.box.style.top = newY + 'px';
     
-    // Update data
-    if (dragData.sectionId !== null) {
-        const sec = sections.find(s => s.id === dragData.sectionId);
-        if (sec) {
-            sec.x = newX;
-            sec.y = newY;
-        }
-    }
+    updateItemPosition(dragData, newX, newY);
 }
 
 function stopDrag() {
@@ -586,7 +640,10 @@ function startResize(e) {
         startHeight: rect.height,
         startLeft: rect.left - (containerRect ? containerRect.left : 0),
         startTop: rect.top - (containerRect ? containerRect.top : 0),
-        sectionId: box.dataset.sectionId ? parseInt(box.dataset.sectionId) : null
+        type: box.dataset.type || (box.dataset.sectionId ? 'section' : null),
+        sectionId: box.dataset.sectionId ? parseInt(box.dataset.sectionId) : null,
+        subName: box.dataset.subName || null,
+        index: box.dataset.index !== undefined ? parseInt(box.dataset.index) : null
     };
     
     box.classList.add('resizing');
@@ -614,14 +671,7 @@ function onResize(e) {
     resizeData.box.style.minWidth = '200px';
     resizeData.box.style.minHeight = '120px';
     
-    // Save dimensions to data
-    if (resizeData.sectionId !== null) {
-        const sec = sections.find(s => s.id === resizeData.sectionId);
-        if (sec) {
-            sec.width = newWidth;
-            sec.height = newHeight;
-        }
-    }
+    updateItemSize(resizeData, newWidth, newHeight);
 }
 
 function stopResize() {

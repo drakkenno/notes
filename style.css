@@ -317,8 +317,8 @@ body {
 
 .box-grid {
     position: relative;
-    min-height: 600px;
-    padding: 0.5rem;
+    min-height: 800px;
+    padding: 0;
 }
 
 .note-box,
