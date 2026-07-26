@@ -417,6 +417,7 @@ body {
     gap: 0.5rem;
     margin-bottom: 0.8rem;
     padding-bottom: 0.5rem;
+    padding-right: 26px; /* leave room for the corner × delete button */
     border-bottom: 1px solid #2a2a1a;
 }
 .note-box .box-title .drag-handle,
