@@ -321,6 +321,17 @@ body {
     padding: 0;
 }
 
+/* ── Responsive grid used inside sections / subsections ── */
+.box-grid--responsive {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+    gap: 1.2rem;
+    align-items: start;
+    padding: 0.5rem 0 2rem 0;
+    min-height: unset;
+}
+
 .note-box,
 .list-box {
     position: absolute;
@@ -334,6 +345,24 @@ body {
     min-height: 120px;
     cursor: default;
     overflow: hidden;
+}
+
+/* Inside the responsive grid: override absolute positioning */
+.box-grid--responsive .note-box,
+.box-grid--responsive .list-box {
+    position: relative !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: unset;
+    min-width: unset;
+    overflow: visible;
+}
+/* Hide drag/resize handles in responsive mode */
+.box-grid--responsive .drag-handle,
+.box-grid--responsive .resize-handle {
+    display: none !important;
 }
 .note-box:hover,
 .list-box:hover {
@@ -450,6 +479,11 @@ body {
     gap: 0.4rem;
     max-height: calc(100% - 60px);
     overflow-y: auto;
+}
+/* In responsive mode, list shows all items without scroll cap */
+.box-grid--responsive .list-box .list-items {
+    max-height: none;
+    overflow-y: visible;
 }
 .list-box .sub-list-item {
     display: flex;
@@ -721,6 +755,11 @@ body {
     color: #e74c5e;
 }
 
+@media (max-width: 900px) {
+    .box-grid--responsive {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    }
+}
 @media (max-width: 700px) {
     .sidebar { width: 240px; min-width: 240px; }
     .sidebar.hidden { transform: translateX(-100%); margin-right: -240px; }
@@ -728,10 +767,20 @@ body {
     .sidebar-content { padding-top: 4rem; }
     .box-grid { min-height: 400px; }
     .canvas { padding: 1rem; }
+    .box-grid--responsive {
+        grid-template-columns: 1fr;
+        gap: 0.8rem;
+    }
 }
 @media (max-width: 480px) {
     .sidebar { width: 200px; min-width: 200px; }
     .sidebar.hidden { margin-right: -200px; }
     .sidebar-content { padding-top: 3.8rem; }
     .canvas-header .title-section h1 { font-size: 1.2rem; }
+    .box-grid--responsive {
+        grid-template-columns: 1fr;
+        gap: 0.6rem;
+        padding: 0 0 1.5rem 0;
+    }
+    .canvas { padding: 0.8rem; }
 }

@@ -190,7 +190,7 @@ function renderMain() {
                         </div>`;
             }
             
-            html += `<div class="box-grid" id="boxGrid">`;
+            html += `<div class="box-grid--responsive" id="boxGrid">`;
             
             // Subsection notes
             if (hasSubNotes) {
@@ -201,8 +201,7 @@ function renderMain() {
                     const height = note.height || 160;
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
-                             data-type="subNote" data-sub-name="${esc(sub.name)}" data-index="${ni}"
-                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;">
+                             data-type="subNote" data-sub-name="${esc(sub.name)}" data-index="${ni}">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
@@ -238,8 +237,7 @@ function renderMain() {
                     const listLocBadge = renderLocationBadge(list.location);
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
-                             data-type="subList" data-sub-name="${esc(sub.name)}" data-index="${liIdx}"
-                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:150px;">
+                             data-type="subList" data-sub-name="${esc(sub.name)}" data-index="${liIdx}">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
@@ -308,7 +306,7 @@ function renderMain() {
             }, 50);
         } else {
             // Show parent section content
-            html += `<div class="box-grid" id="boxGrid">`;
+            html += `<div class="box-grid--responsive" id="boxGrid">`;
             
             // Section notes
             if (sec.notes && sec.notes.length > 0) {
@@ -319,8 +317,7 @@ function renderMain() {
                     const height = note.height || 160;
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
-                             data-type="note" data-section-id="${sec.id}" data-index="${ni}"
-                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;">
+                             data-type="note" data-section-id="${sec.id}" data-index="${ni}">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
@@ -356,8 +353,7 @@ function renderMain() {
                     const listLocBadge = renderLocationBadge(list.location);
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
-                             data-type="list" data-section-id="${sec.id}" data-index="${liIdx}"
-                             style="position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:150px;">
+                             data-type="list" data-section-id="${sec.id}" data-index="${liIdx}">
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
