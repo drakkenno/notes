@@ -4,7 +4,9 @@
 
 async function loadFromVercel() {
     try {
-        const response = await fetch(VERCEL_API_URL);
+        const username = currentUser ? currentUser.username : '';
+        const url = username ? `${VERCEL_API_URL}?username=${encodeURIComponent(username)}` : VERCEL_API_URL;
+        const response = await fetch(url);
         if (!response.ok) {
             if (response.status === 404) return null;
             throw new Error(`HTTP ${response.status}`);
@@ -34,6 +36,11 @@ async function saveToVercel(data) {
             })),
             nextId: data.nextId || 1
         };
+        
+        // Include username if logged in
+        if (currentUser) {
+            saveData.username = currentUser.username;
+        }
         
         const response = await fetch(VERCEL_API_URL, {
             method: 'POST',
