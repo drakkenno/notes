@@ -1,141 +1,74 @@
-// ============================================================
-// SHARED SECTION - A special section visible to all users
-// ============================================================
+// Recipient-based section sharing
+const SHARED_API_URL = 'https://notes-b1ygpe9nf-drakenotes1.vercel.app/api/shared';
+let sharedSections = [];
+let isSharedSectionsView = false;
 
-const SHARED_SECTION_ID = -1; // Virtual ID for the shared section
-
-async function sharedApi(method = 'GET', body = null) {
+async function sharedApi(method = 'GET', body) {
     if (!currentUser?.token) throw new Error('Please sign in again');
-    const options = {
+    const response = await fetch(SHARED_API_URL, {
         method,
-        headers: { Authorization: `Bearer ${currentUser.token}` }
-    };
-    if (body) {
-        options.headers['Content-Type'] = 'application/json';
-        options.body = JSON.stringify(body);
-    }
-    const response = await fetch(SHARED_API_URL, options);
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser.token}` },
+        body: body ? JSON.stringify(body) : undefined
+    });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+    if (!response.ok) throw new Error(data.error || 'Shared sections request failed');
     return data;
 }
 
-async function loadSharedFolders() {
+async function loadSharedSections() {
     if (!currentUser) return;
-    if (isLoadingShared) return;
-    isLoadingShared = true;
-    try {
-        const data = await sharedApi();
-        sharedFolders = data.folders || [];
-        
-        // Always update the shared section with loaded data
-        updateSharedSection();
-        
-        if (isSharedView) render();
-        else renderSidebar();
-    } catch (error) {
-        console.error('Failed to load shared folders:', error);
-        showSaveIndicator(error.message, true);
-    } finally {
-        isLoadingShared = false;
-    }
+    const data = await sharedApi();
+    sharedSections = data.sections || [];
 }
 
-function updateSharedSection() {
-    // Convert shared folders to a section format
-    const existingIndex = sections.findIndex(s => s.id === SHARED_SECTION_ID);
-    
-    const sharedSection = {
-        id: SHARED_SECTION_ID,
-        name: 'Shared',
-        isShared: true,
-        notes: sharedFolders.map(folder => ({
-            id: folder.id,
-            title: folder.title,
-            content: folder.content,
-            createdBy: folder.createdBy,
-            createdAt: folder.createdAt,
-            contributors: [], // Can be expanded later
-            x: 10,
-            y: 10,
-            width: 300,
-            height: 160
-        })),
-        items: [],
-        subs: [],
-        x: 10,
-        y: 10,
-        width: 300,
-        height: 200
-    };
-    
-    if (existingIndex >= 0) {
-        sections[existingIndex] = sharedSection;
-    } else {
-        sections.unshift(sharedSection); // Add at the beginning
-    }
-}
-
-window.showSharedView = async function() {
-    isSharedView = true;
-    selectedSectionId = SHARED_SECTION_ID;
-    selectedSubsection = null;
+window.showSharedSections = async function() {
+    isSharedSectionsView = true;
+    selectedSectionId = null;
+    selectedSubsectionPath = [];
+    try { await loadSharedSections(); } catch (error) { showSaveIndicator(error.message, true); }
     render();
-    await loadSharedFolders();
 };
 
-window.createSharedFolder = async function() {
-    const title = prompt('Shared folder name:');
-    if (!title?.trim()) return;
-    const content = prompt('Shared content (visible to every user):') ?? '';
+window.shareSection = async function(sectionId) {
+    const section = sections.find(item => item.id === sectionId);
+    if (!section) return;
+    const input = prompt('Share with registered usernames (comma-separated):');
+    if (!input) return;
+    const recipients = [...new Set(input.split(',').map(name => name.trim().toLowerCase()).filter(Boolean))]
+        .filter(name => name !== currentUser.username.toLowerCase());
+    if (!recipients.length) return alert('Enter at least one other username.');
     try {
-        await sharedApi('POST', { action: 'create', title: title.trim(), content });
-        showSaveIndicator('Shared folder created');
-        await loadSharedFolders();
+        await sharedApi('POST', { action: 'share-section', recipients, section });
+        showSaveIndicator('Section shared');
+        await loadSharedSections();
     } catch (error) {
         showSaveIndicator(error.message, true);
     }
 };
 
-window.deleteSharedFolder = async function(folderId) {
-    const folder = sharedFolders.find(item => item.id === folderId);
-    if (!folder || !confirm(`Delete shared folder "${folder.title}"?`)) return;
+window.deleteSharedSection = async function(shareId) {
+    if (!confirm('Remove this shared section?')) return;
     try {
-        await sharedApi('POST', { action: 'delete', folderId });
-        showSaveIndicator('Shared folder deleted');
-        await loadSharedFolders();
+        await sharedApi('POST', { action: 'delete-section', shareId });
+        await loadSharedSections();
+        render();
     } catch (error) {
         showSaveIndicator(error.message, true);
     }
 };
 
-function renderSharedView() {
-    if (!mainContainer) return;
-    const username = currentUser?.username || '';
-    let html = `<div class="canvas shared-canvas">
-        <div class="canvas-header">
-            <div class="title-section"><i class="fas fa-users"></i><h1>Shared</h1></div>
-            <button class="action-btn" onclick="createSharedFolder()"><i class="fas fa-folder-plus"></i> Add shared folder</button>
-        </div>
-        <p class="shared-intro">Everything here is visible to all users. Only its creator or drakeno can delete it.</p>`;
-
-    if (isLoadingShared && sharedFolders.length === 0) {
-        html += `<div class="empty-message"><i class="fas fa-spinner fa-spin"></i> Loading shared folders...</div>`;
-    } else if (sharedFolders.length === 0) {
-        html += `<div class="empty-state-hero shared-empty"><i class="fas fa-folder-open"></i><p>No shared folders yet</p></div>`;
+function renderSharedSections() {
+    let html = '<div class="canvas"><div class="canvas-header"><div class="title-section"><i class="fas fa-share-alt"></i><h1>Shared Sections</h1></div><button class="back-btn" onclick="isSharedSectionsView=false; render()"><i class="fas fa-arrow-left"></i> Back</button></div>';
+    if (!sharedSections.length) {
+        html += '<div class="empty-state-hero"><i class="fas fa-share-alt"></i><p>No sections have been shared with you.</p></div>';
     } else {
-        html += `<div class="shared-folder-grid">`;
-        sharedFolders.forEach(folder => {
-            const canDelete = username === 'drakeno' || username === folder.createdBy;
-            html += `<article class="shared-folder-card">
-                ${canDelete ? `<button class="box-delete-btn" onclick="deleteSharedFolder(${folder.id})" title="Delete shared folder"><i class="fas fa-times"></i></button>` : ''}
-                <div class="shared-folder-title"><i class="fas fa-folder-open"></i> ${esc(folder.title)}</div>
-                <div class="shared-folder-content">${esc(folder.content || 'No content').replace(/\n/g, '<br>')}</div>
-                <div class="shared-folder-meta"><i class="fas fa-user"></i> ${esc(folder.createdBy)} Â· ${new Date(folder.createdAt).toLocaleString()}</div>
-            </article>`;
+        html += '<div class="shared-folder-grid">';
+        sharedSections.forEach(share => {
+            const section = share.section;
+            const canDelete = share.owner === currentUser.username;
+            html += `<article class="shared-folder-card"><div class="shared-folder-title"><i class="fas fa-folder-open"></i> ${esc(section.name)}</div><div class="shared-folder-content">${(section.notes || []).length} notes · ${(section.items || []).length} lists · ${(section.subs || []).length} subsections</div><div class="shared-folder-meta">Shared by ${esc(share.owner)}</div>${canDelete ? `<button class="box-delete-btn" onclick="deleteSharedSection(${share.id})" title="Remove share"><i class="fas fa-times"></i></button>` : ''}</article>`;
         });
-        html += `</div>`;
+        html += '</div>';
     }
-    html += `</div>`;
-    mainContainer.innerHTML = html;
+    mainContainer.innerHTML = html + '</div>';
 }

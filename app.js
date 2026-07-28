@@ -260,7 +260,7 @@ function renderSidebar() {
         sidebarContainer.innerHTML = '';
         return;
     }
-    let html = '';
+    let html = `<button class="add-section-btn" onclick="showSharedSections()"><i class="fas fa-share-alt"></i> Shared Sections</button>`;
     sections.forEach((sec) => {
         const isActive = selectedSectionId === sec.id && selectedSubsectionPath.length === 0;
         html += `<div class="section-group" data-section-id="${sec.id}">`;
@@ -268,6 +268,7 @@ function renderSidebar() {
                     <span><i class="fas fa-folder-open" style="margin-right:6px;"></i> ${capitalize(sec.name)}</span>
                     <span class="section-actions">
                         <i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i>
+                        <i class="fas fa-share-alt" onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i>
                         <i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i>
                     </span>
                 </div>`;

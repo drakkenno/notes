@@ -4,6 +4,7 @@
 
 function render() {
     renderSidebar();
+    if (isSharedSectionsView) { renderSharedSections(); return; }
     renderMain();
     saveLocalData();
     if (isVercelConfigured && !isSyncing) {
