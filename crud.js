@@ -31,44 +31,112 @@ window.deleteSection = function(id) {
 //  CRUD OPERATIONS - SUBSECTIONS
 // ============================================================
 
-window.addSubsection = function(id) {
-    const sec = sections.find(s => s.id === id);
-    if (!sec) return;
-    const name = prompt('Subsection name:');
-    if (name && name.trim()) {
-        if (!sec.subs) sec.subs = [];
-        const newSub = { name: name.trim().toLowerCase(), notes: [], items: [] };
-        sec.subs.push(newSub);
-        render();
-        selectSubsection(id, newSub.name);
-    }
-};
-
-window.deleteSubsection = function(sectionId, subName) {
+window.addSubsection = function(sectionId, parentPath = '') {
     const sec = sections.find(s => s.id === sectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    
+    const parentDepth = parentPath ? parentPath.split('/').filter(Boolean).length : 0;
+    if (parentDepth >= 5) {
+        alert('Maximum subsection depth (5 levels) reached');
+        return;
+    }
+
+    const name = prompt('Subsection name:');
+    if (!name || !name.trim()) return;
+    
+    const newSub = { name: name.trim().toLowerCase(), notes: [], items: [], subs: [] };
+    
+    // If parentPath is provided, add as nested subsection
+    if (parentPath) {
+        const pathParts = parentPath.split('/');
+        let current = sec.subs || [];
+        let parent = null;
+        
+        for (let i = 0; i < pathParts.length; i++) {
+            const part = pathParts[i];
+            parent = current.find(s => s.name === part);
+            if (!parent) return;
+            if (i < pathParts.length - 1) {
+                current = parent.subs || [];
+            }
+        }
+        
+        if (!parent.subs) parent.subs = [];
+        parent.subs.push(newSub);
+    } else {
+        // Add as top-level subsection
+        if (!sec.subs) sec.subs = [];
+        sec.subs.push(newSub);
+    }
+    
+    render();
+    
+    // Select the new subsection
+    const newPath = parentPath ? [...parentPath.split('/'), newSub.name] : [newSub.name];
+    selectSubsection(sectionId, newPath);
+};
+
+window.deleteSubsection = function(sectionId, path) {
+    const sec = sections.find(s => s.id === sectionId);
+    if (!sec) return;
+    
+    const pathParts = path.split('/');
+    const subName = pathParts[pathParts.length - 1];
+    
+    // Find the subsection to delete
+    let current = sec.subs || [];
+    let parent = null;
+    let subIndex = -1;
+    
+    for (let i = 0; i < pathParts.length; i++) {
+        const part = pathParts[i];
+        subIndex = current.findIndex(s => s.name === part);
+        if (subIndex === -1) return;
+        
+        if (i < pathParts.length - 1) {
+            parent = current[subIndex];
+            current = parent.subs || [];
+        }
+    }
+    
+    const sub = current[subIndex];
     if (!sub) return;
     
     const noteCount = sub.notes ? sub.notes.length : 0;
     const listCount = sub.items ? sub.items.length : 0;
+    const nestedCount = sub.subs ? sub.subs.length : 0;
     
     let message = `⚠️ Delete subsection "${capitalize(subName)}"?\n\n`;
     message += `This will permanently remove:\n`;
     message += `• ${noteCount} notes\n`;
-    message += `• ${listCount} lists\n\n`;
-    message += `This action cannot be undone!`;
+    message += `• ${listCount} lists\n`;
+    if (nestedCount > 0) {
+        message += `• ${nestedCount} nested subsections\n`;
+    }
+    message += `\nThis action cannot be undone!`;
     
     if (!confirm(message)) return;
     
-    const index = sec.subs.findIndex(s => s.name === subName);
-    if (index !== -1) {
-        sec.subs.splice(index, 1);
-        if (selectedSectionId === sectionId && selectedSubsection === subName) {
-            selectedSubsection = null;
+    // Delete the subsection
+    current.splice(subIndex, 1);
+    
+    // Clear selection if this subsection was selected
+    if (selectedSectionId === sectionId) {
+        const selectedPath = pathParts.join('/');
+        const currentSelectedPath = selectedSubsectionPath.join('/');
+        if (currentSelectedPath === selectedPath || currentSelectedPath.startsWith(selectedPath + '/')) {
+            selectedSubsectionPath = [];
         }
-        render();
     }
+    
+    render();
+};
+
+window.deleteCurrentSubsection = function() {
+    if (!selectedSectionId || selectedSubsectionPath.length === 0) return;
+    
+    const path = selectedSubsectionPath.join('/');
+    deleteSubsection(selectedSectionId, path);
 };
 
 // ============================================================
@@ -177,10 +245,11 @@ window.setSubItemRating = function(sectionId, listIndex, subIndex, rating) {
 //  CRUD OPERATIONS - SUBSECTION NOTES
 // ============================================================
 
-window.addSubNote = function(subName) {
+window.addSubNote = function(subPath) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     if (!sub.notes) sub.notes = [];
     const ni = sub.notes.length;
@@ -195,10 +264,11 @@ window.addSubNote = function(subName) {
     }, 50);
 };
 
-window.deleteSubNote = function(subName, noteIndex) {
+window.deleteSubNote = function(subPath, noteIndex) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     sub.notes.splice(noteIndex, 1);
     render();
@@ -208,10 +278,11 @@ window.deleteSubNote = function(subName, noteIndex) {
 //  CRUD OPERATIONS - SUBSECTION LISTS
 // ============================================================
 
-window.addSubList = function(subName) {
+window.addSubList = function(subPath) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     if (!sub.items) sub.items = [];
     const liIdx = sub.items.length;
@@ -226,10 +297,11 @@ window.addSubList = function(subName) {
     }, 50);
 };
 
-window.deleteSubList = function(subName, listIndex) {
+window.deleteSubList = function(subPath, listIndex) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     sub.items.splice(listIndex, 1);
     render();
@@ -239,10 +311,11 @@ window.deleteSubList = function(subName, listIndex) {
 //  CRUD OPERATIONS - SUBSECTION LIST ITEMS
 // ============================================================
 
-window.addSubItemToSub = function(subName, listIndex) {
+window.addSubItemToSub = function(subPath, listIndex) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list) return;
@@ -258,10 +331,11 @@ window.addSubItemToSub = function(subName, listIndex) {
     }, 50);
 };
 
-window.deleteSubItemFromSub = function(subName, listIndex, subIndex) {
+window.deleteSubItemFromSub = function(subPath, listIndex, subIndex) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list) return;
@@ -269,10 +343,11 @@ window.deleteSubItemFromSub = function(subName, listIndex, subIndex) {
     render();
 };
 
-window.toggleSubItemInSub = function(subName, listIndex, subIndex) {
+window.toggleSubItemInSub = function(subPath, listIndex, subIndex) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list) return;
@@ -280,10 +355,11 @@ window.toggleSubItemInSub = function(subName, listIndex, subIndex) {
     render();
 };
 
-window.setSubItemRatingInSub = function(subName, listIndex, subIndex, rating) {
+window.setSubItemRatingInSub = function(subPath, listIndex, subIndex, rating) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list || !list.items || !list.items[subIndex]) return;
@@ -308,10 +384,11 @@ window.setItemLocation = function(sectionId, listIndex, subIndex) {
     }
 };
 
-window.setSubItemLocationInSub = function(subName, listIndex, subIndex) {
+window.setSubItemLocationInSub = function(subPath, listIndex, subIndex) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list || !list.items || !list.items[subIndex]) return;
@@ -335,10 +412,11 @@ window.setListLocation = function(sectionId, listIndex) {
     }
 };
 
-window.setSubListLocationInSub = function(subName, listIndex) {
+window.setSubListLocationInSub = function(subPath, listIndex) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list) return;

@@ -4,8 +4,8 @@
 
 async function loadFromVercel() {
     try {
-        const username = currentUser ? currentUser.username : '';
-        const url = username ? `${VERCEL_API_URL}?username=${encodeURIComponent(username)}` : VERCEL_API_URL;
+        if (!currentUser?.username) throw new Error('Login required');
+        const url = `${VERCEL_API_URL}?username=${encodeURIComponent(currentUser.username)}`;
         const response = await fetch(url);
         if (!response.ok) {
             if (response.status === 404) return null;
@@ -34,13 +34,10 @@ async function saveToVercel(data) {
                 x: sec.x || 10,
                 y: sec.y || 10
             })),
-            nextId: data.nextId || 1
+            nextId: data.nextId || 1,
+            username: currentUser?.username
         };
-        
-        // Include username if logged in
-        if (currentUser) {
-            saveData.username = currentUser.username;
-        }
+        if (!saveData.username) throw new Error('Login required');
         
         const response = await fetch(VERCEL_API_URL, {
             method: 'POST',
@@ -80,6 +77,14 @@ async function syncFromVercel() {
                 if (!sec.subs) sec.subs = [];
                 if (!sec.notes) sec.notes = [];
                 if (!sec.items) sec.items = [];
+                // Ensure all subsections have subs array for nested subsections
+                if (sec.subs) {
+                    sec.subs.forEach(sub => {
+                        if (!sub.subs) sub.subs = [];
+                        if (!sub.notes) sub.notes = [];
+                        if (!sub.items) sub.items = [];
+                    });
+                }
                 return sec;
             });
             sections = data.sections || [];
@@ -195,25 +200,59 @@ function saveLocalData() {
 
 function selectSection(sectionId) {
     selectedSectionId = sectionId;
-    selectedSubsection = null;
+    selectedSubsectionPath = [];
     render();
 }
 
-function selectSubsection(sectionId, subsectionName) {
-    selectedSectionId = sectionId;
-    selectedSubsection = subsectionName;
+function selectSubsection(sectionId, subsectionPath) {
+    selectedSectionId = parseInt(sectionId);
+    // subsectionPath can be a string (for backward compatibility) or an array
+    if (Array.isArray(subsectionPath)) {
+        selectedSubsectionPath = subsectionPath;
+    } else {
+        // Split the string path by '/' to get the array of subsection names
+        selectedSubsectionPath = subsectionPath.split('/').filter(p => p.length > 0);
+    }
     render();
 }
 
 function clearSelection() {
     selectedSectionId = null;
-    selectedSubsection = null;
+    selectedSubsectionPath = [];
     render();
 }
 
 // ============================================================
 //  RENDER - SIDEBAR
 // ============================================================
+
+function renderSubsectionTree(subs, sectionId, parentPath, depth = 0) {
+    if (!subs || subs.length === 0) return '';
+    
+    let html = '<ul class="subsection-list">';
+    subs.forEach(sub => {
+        const currentPath = [...parentPath, sub.name];
+        const isActive = selectedSectionId === sectionId && 
+                        selectedSubsectionPath.length === currentPath.length &&
+                        selectedSubsectionPath.every((val, idx) => val === currentPath[idx]);
+        
+        const pathStr = escJs(currentPath.join('/'));
+        html += `<li class="${isActive ? 'active' : ''}" style="padding-left:${depth * 1.2}rem; cursor:pointer;" onclick="selectSubsection(${sectionId}, '${pathStr}')">`;
+        html += `<i class="fas fa-circle"></i> ${capitalize(sub.name)}`;
+        html += `<span class="section-actions" style="margin-left:auto;">`;
+        html += `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sectionId}, '${pathStr}')" title="Add nested subsection"></i>`;
+        html += `<i class="fas fa-times delete-sub" onclick="event.stopPropagation(); deleteSubsection(${sectionId}, '${pathStr}')" title="Delete subsection"></i>`;
+        html += `</span>`;
+        html += `</li>`;
+        
+        // Recursively render nested subsections
+        if (sub.subs && sub.subs.length > 0) {
+            html += renderSubsectionTree(sub.subs, sectionId, currentPath, depth + 1);
+        }
+    });
+    html += '</ul>';
+    return html;
+}
 
 function renderSidebar() {
     if (!sidebarContainer) return;
@@ -223,8 +262,7 @@ function renderSidebar() {
     }
     let html = '';
     sections.forEach((sec) => {
-        const isActive = selectedSectionId === sec.id && !selectedSubsection;
-        const isSubActive = selectedSectionId === sec.id && selectedSubsection;
+        const isActive = selectedSectionId === sec.id && selectedSubsectionPath.length === 0;
         html += `<div class="section-group" data-section-id="${sec.id}">`;
         html += `<div class="section-title ${isActive ? 'active' : ''}" onclick="selectSection(${sec.id})">
                     <span><i class="fas fa-folder-open" style="margin-right:6px;"></i> ${capitalize(sec.name)}</span>
@@ -233,21 +271,17 @@ function renderSidebar() {
                         <i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i>
                     </span>
                 </div>`;
-        html += `<ul class="subsection-list">`;
+        
+        // Render nested subsection tree
         if (sec.subs && sec.subs.length > 0) {
-            sec.subs.forEach(sub => {
-                const isSubActive2 = isSubActive && sub.name === selectedSubsection;
-                html += `<li class="${isSubActive2 ? 'active' : ''}" onclick="selectSubsection(${sec.id}, '${sub.name}')">
-                            <i class="fas fa-circle"></i> ${capitalize(sub.name)}
-                            <span class="delete-sub" onclick="event.stopPropagation(); deleteSubsection(${sec.id}, '${sub.name}')" title="Delete subsection">
-                                <i class="fas fa-times"></i>
-                            </span>
-                        </li>`;
-            });
+            html += renderSubsectionTree(sec.subs, sec.id, [], 0);
         } else {
+            html += `<ul class="subsection-list">`;
             html += `<li style="color:#7a7a5a; font-size:0.8rem; padding-left:1.2rem; cursor:default;"><i class="fas fa-ellipsis-h"></i> no subs</li>`;
+            html += `</ul>`;
         }
-        html += `</ul></div>`;
+        
+        html += `</div>`;
     });
     sidebarContainer.innerHTML = html;
 }

@@ -8,104 +8,48 @@
     <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-    <!-- ============================================================
-         LOGIN OVERLAY
-         ============================================================ -->
-    <div class="login-overlay" id="loginOverlay">
-        <div class="login-modal">
-            <div class="login-header">
-                <i class="fas fa-sticky-note"></i>
-                <h2>Notes & Lists</h2>
-                <p>Sign in to access your notes</p>
-            </div>
-
-            <!-- Error / Success Messages -->
-            <div class="auth-message auth-error" id="authError"></div>
-            <div class="auth-message auth-success" id="authSuccess"></div>
-
-            <!-- ===== LOGIN FORM ===== -->
-            <div class="auth-form" id="loginForm">
-                <div class="auth-field">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="loginUsername" placeholder="Username" autocomplete="username" />
-                </div>
-                <div class="auth-field">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password" />
-                </div>
-                <button class="auth-btn" onclick="handleLogin()">
-                    <i class="fas fa-sign-in-alt"></i> Sign In
-                </button>
-                <div class="auth-links">
-                    <a href="#" onclick="showSignupForm(); return false;">Create new account</a>
-                    <a href="#" onclick="showChangePasswordForm(); return false;">Change password</a>
-                </div>
-            </div>
-
-            <!-- ===== SIGNUP FORM ===== -->
-            <div class="auth-form" id="signupForm" style="display:none;">
-                <div class="auth-field">
-                    <i class="fas fa-user"></i>
-                    <input type="text" id="signupUsername" placeholder="Choose a username" autocomplete="off" />
-                </div>
-                <div class="auth-field">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="signupPassword" placeholder="Password (min 3 chars)" autocomplete="new-password" />
-                </div>
-                <div class="auth-field">
-                    <i class="fas fa-check-circle"></i>
-                    <input type="password" id="signupConfirmPassword" placeholder="Confirm password" autocomplete="new-password" />
-                </div>
-                <button class="auth-btn" onclick="handleSignup()">
-                    <i class="fas fa-user-plus"></i> Create Account
-                </button>
-                <div class="auth-links">
-                    <a href="#" onclick="showLoginForm(); return false;">Already have an account? Sign in</a>
-                </div>
-            </div>
-
-            <!-- ===== CHANGE PASSWORD FORM ===== -->
-            <div class="auth-form" id="changePasswordForm" style="display:none;">
-                <div class="auth-field">
-                    <i class="fas fa-lock"></i>
-                    <input type="password" id="changeCurrentPassword" placeholder="Current password" autocomplete="current-password" />
-                </div>
-                <div class="auth-field">
-                    <i class="fas fa-key"></i>
-                    <input type="password" id="changeNewPassword" placeholder="New password (min 3 chars)" autocomplete="new-password" />
-                </div>
-                <div class="auth-field">
-                    <i class="fas fa-check-circle"></i>
-                    <input type="password" id="changeConfirmNewPassword" placeholder="Confirm new password" autocomplete="new-password" />
-                </div>
-                <button class="auth-btn" onclick="handleChangePassword()">
-                    <i class="fas fa-save"></i> Change Password
-                </button>
-                <div class="auth-links">
-                    <a href="#" onclick="showLoginForm(); return false;">Back to sign in</a>
-                </div>
-            </div>
-        </div>
+    <div class="login-overlay visible" id="loginOverlay">
+        <section class="auth-card" aria-labelledby="authTitle">
+            <h1 id="authTitle"><i class="fas fa-sticky-note"></i> Notes</h1>
+            <p class="auth-subtitle">Sign in to your personal workspace</p>
+            <p class="auth-message auth-error" id="authError"></p>
+            <p class="auth-message auth-success" id="authSuccess"></p>
+            <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
+                <input id="loginUsername" autocomplete="username" placeholder="Username" required>
+                <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required>
+                <button class="auth-btn" type="submit">Log in</button>
+                <button class="auth-link" type="button" onclick="showSignupForm()">Create an account</button>
+            </form>
+            <form id="signupForm" style="display:none" onsubmit="event.preventDefault(); handleSignup();">
+                <input id="signupUsername" autocomplete="username" placeholder="Username" required>
+                <input id="signupPassword" type="password" autocomplete="new-password" placeholder="Password" required>
+                <input id="signupConfirmPassword" type="password" autocomplete="new-password" placeholder="Confirm password" required>
+                <button class="auth-btn" type="submit">Create account</button>
+                <button class="auth-link" type="button" onclick="showLoginForm()">Back to login</button>
+            </form>
+            <form id="changePasswordForm" style="display:none" onsubmit="event.preventDefault(); handleChangePassword();">
+                <h2>Change password</h2><input id="changeCurrentPassword" type="password" placeholder="Current password" required>
+                <input id="changeNewPassword" type="password" placeholder="New password" required>
+                <input id="changeConfirmNewPassword" type="password" placeholder="Confirm new password" required>
+                <button class="auth-btn" type="submit">Update password</button><button class="auth-link" type="button" onclick="hideLoginOverlay()">Cancel</button>
+            </form>
+            <form id="deleteAccountForm" style="display:none" onsubmit="event.preventDefault(); handleDeleteAccount();">
+                <h2>Delete account</h2><p class="auth-subtitle">This permanently removes your notes.</p>
+                <input id="deleteUsername" readonly><input id="deletePassword" type="password" placeholder="Current password" required>
+                <button class="auth-btn danger" type="submit">Delete my account</button><button class="auth-link" type="button" onclick="hideLoginOverlay()">Cancel</button>
+            </form>
+            <section id="adminPanel" style="display:none"><h2>Admin panel</h2><p class="auth-subtitle">Manage user accounts.</p><div id="adminLoading">Loading users...</div><div id="adminUserList"></div><button class="auth-link" type="button" onclick="hideAdminPanel()">Close</button></section>
+        </section>
     </div>
 
-    <!-- ============================================================
-         SIDEBAR TOGGLE
-         ============================================================ -->
     <div class="sidebar-toggle-wrapper">
         <button id="toggleSidebarBtn"><i class="fas fa-bars"></i> <span>Notes</span></button>
     </div>
 
-    <!-- ============================================================
-         SAVE INDICATOR
-         ============================================================ -->
     <div class="save-indicator" id="saveIndicator">
         <i class="fas fa-check-circle"></i> Saved
     </div>
 
-    <!-- ============================================================
-         SIDEBAR
-         ============================================================ -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-content">
             <div class="status-panel" id="statusPanel">
@@ -113,47 +57,32 @@
                     <i class="fas fa-cloud"></i>
                     <span id="statusText">Cloud sync: <span class="disconnected">not configured</span></span>
                 </div>
-                <div class="status-actions">
+                <div class="user-actions" id="userActions" style="display:none"><span id="currentUserDisplay"></span><button class="user-action-btn" onclick="showChangePasswordLoggedIn()" title="Change password"><i class="fas fa-key"></i></button><button class="user-action-btn" id="deleteMyAccountBtn" onclick="showDeleteOwnAccount()" title="Delete my account"><i class="fas fa-trash-alt"></i></button><button class="user-action-btn" id="adminPanelBtn" onclick="showAdminPanel()" title="Admin panel" style="display:none"><i class="fas fa-shield-alt"></i></button><button class="user-action-btn" onclick="handleLogout()" title="Log out"><i class="fas fa-sign-out-alt"></i></button></div><div class="status-actions">
                     <button onclick="syncNow()" id="syncBtn"><i class="fas fa-sync"></i> Sync</button>
                 </div>
             </div>
-
-            <!-- User info & logout -->
-            <div class="user-panel" id="userPanel">
-                <span class="user-display" id="currentUserDisplay" style="display:none;">
-                    <i class="fas fa-user"></i> <span id="userNameDisplay"></span>
-                </span>
-                <button class="logout-btn" id="logoutBtn" onclick="handleLogout()" style="display:none;">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </button>
-            </div>
-
+            <button class="sidebar-close-btn" id="sidebarCloseBtn" title="Close sidebar">
+                <i class="fas fa-times"></i>
+            </button>
             <div id="sidebarSectionsContainer"></div>
             <button class="add-section-btn" id="addSectionBtn"><i class="fas fa-plus-circle"></i> Add section</button>
         </div>
     </aside>
 
-    <!-- ============================================================
-         MAIN CONTENT
-         ============================================================ -->
     <main class="main" id="mainContent">
         <div id="mainSectionsContainer"></div>
     </main>
 
-    <!-- ============================================================
-         SCRIPTS
-         ============================================================ -->
     <script src="config.js"></script>
     <script src="auth.js"></script>
     <script src="app.js"></script>
     <script src="ui.js"></script>
     <script src="crud.js"></script>
+    <script src="shared.js"></script>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize auth first
         initAuth();
-
         const addBtn = document.getElementById('addSectionBtn');
         if (addBtn) {
             addBtn.addEventListener('click', function(e) {
@@ -190,6 +119,18 @@
                 this.innerHTML = sidebar.classList.contains('hidden') ?
                     '<i class="fas fa-chevron-right"></i> <span>Notes</span>' :
                     '<i class="fas fa-bars"></i> <span>Notes</span>';
+            });
+        }
+
+        const closeBtn = document.getElementById('sidebarCloseBtn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                const sidebar = document.getElementById('sidebar');
+                sidebar.classList.add('hidden');
+                const toggleBtn = document.getElementById('toggleSidebarBtn');
+                if (toggleBtn) {
+                    toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i> <span>Notes</span>';
+                }
             });
         }
     });

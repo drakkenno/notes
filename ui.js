@@ -14,6 +14,25 @@ function render() {
     }
 }
 
+// Helper to get subsection by path
+function getSubsectionByPath(section, pathArray) {
+    if (!section || !pathArray || pathArray.length === 0) return null;
+    
+    let current = section.subs || [];
+    let sub = null;
+    
+    for (let i = 0; i < pathArray.length; i++) {
+        const name = pathArray[i];
+        sub = current.find(s => s.name === name);
+        if (!sub) return null;
+        if (i < pathArray.length - 1) {
+            current = sub.subs || [];
+        }
+    }
+    
+    return sub;
+}
+
 // Auto-resize every textarea.editable-item to its content height
 function autoResizeTextareas() {
     document.querySelectorAll('textarea.editable-item').forEach(ta => {
@@ -95,7 +114,13 @@ function renderMain() {
     if (selectedSectionId !== null) {
         const sec = sections.find(s => s.id === selectedSectionId);
         if (sec) {
-            const displayName = selectedSubsection ? `${capitalize(sec.name)} / ${capitalize(selectedSubsection)}` : capitalize(sec.name);
+            let displayName;
+            if (selectedSubsectionPath.length > 0) {
+                // Show only the current subsection name
+                displayName = capitalize(selectedSubsectionPath[selectedSubsectionPath.length - 1]);
+            } else {
+                displayName = capitalize(sec.name);
+            }
             html += `<div class="title-section">
                         <i class="fas fa-folder-open" style="color:#f5e56b; font-size:1.5rem;"></i>
                         <input class="editable-title" value="${esc(displayName)}" 
@@ -105,7 +130,8 @@ function renderMain() {
                         <button class="edit-title-btn" onclick="document.querySelector('.canvas-header .editable-title').focus()" style="background:transparent; border:none; color:#7a7a5a; cursor:pointer; font-size:0.8rem;">
                             <i class="fas fa-edit"></i>
                         </button>
-                        ${selectedSubsection ? `<span style="color: #7a7a5a; font-size: 0.9rem; margin-left: 0.5rem;">(subsection)</span>` : ''}
+                        ${selectedSubsectionPath.length > 0 ? `<span style="color: #7a7a5a; font-size: 0.9rem; margin-left: 0.5rem;">(subsection)</span>` : ''}
+                        ${selectedSubsectionPath.length > 0 ? `<button class="delete-subsection-btn" onclick="deleteCurrentSubsection()" style="background:transparent; border:none; color:#ff6b6b; cursor:pointer; font-size:0.9rem; margin-left: 0.5rem;" title="Delete subsection"><i class="fas fa-trash-alt"></i></button>` : ''}
                     </div>
                     <div style="display: flex; gap: 0.8rem; align-items: center;">
                         <button class="back-btn" onclick="clearSelection()"><i class="fas fa-arrow-left"></i> Back</button>
@@ -179,8 +205,8 @@ function renderMain() {
         }
         
         // If we're in a subsection, show its content
-        if (selectedSubsection) {
-            const sub = sec.subs.find(s => s.name === selectedSubsection);
+        if (selectedSubsectionPath.length > 0) {
+            const sub = getSubsectionByPath(sec, selectedSubsectionPath);
             if (!sub) {
                 html += `<div class="empty-state-hero"><i class="fas fa-exclamation-triangle"></i><p>Subsection not found</p></div>`;
                 html += `</div>`;
@@ -207,21 +233,22 @@ function renderMain() {
                     const y = note.y !== undefined ? note.y : (10 + Math.floor(ni / 3) * 190);
                     const width = note.width || 300;
                     const height = note.height || 160;
+                    const subPathStr = selectedSubsectionPath.join('/');
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
-                             data-type="subNote" data-sub-name="${esc(sub.name)}" data-index="${ni}">
-                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubNote('${sub.name}', ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
+                             data-type="subNote" data-sub-path="${esc(subPathStr)}" data-index="${ni}">
+                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubNote('${subPathStr}', ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
                                 <input class="editable-title" value="${esc(note.title || 'Note')}" 
-                                       onchange="updateSubNoteTitle('${sub.name}', ${ni}, this.value)"
+                                       onchange="updateSubNoteTitle('${subPathStr}', ${ni}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
                             </div>
                             <div class="note-content">
                                 <textarea class="editable-content" 
-                                          onchange="updateSubNoteContent('${sub.name}', ${ni}, this.value)"
+                                          onchange="updateSubNoteContent('${subPathStr}', ${ni}, this.value)"
                                           style="background:transparent; border:none; color:#d4c45a; font-size:0.95rem; line-height:1.6; outline:none; width:100%; min-height:30px; max-height:200px; font-family:inherit; resize:vertical; padding:0.2rem; border-radius:4px;">${esc(note.content || '')}</textarea>
                             </div>
                             <div class="resize-handle" onclick="event.stopPropagation();">
@@ -241,22 +268,23 @@ function renderMain() {
                     const height = list.height || 200;
                     const ratingBadge = renderListRatingBadge(list);
                     const listLocBadge = renderLocationBadge(list.location);
+                    const subPathStr = selectedSubsectionPath.join('/');
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
-                             data-type="subList" data-sub-name="${esc(sub.name)}" data-index="${liIdx}">
-                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubList('${sub.name}', ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
+                             data-type="subList" data-sub-path="${esc(subPathStr)}" data-index="${liIdx}">
+                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubList('${subPathStr}', ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
                             <div class="box-title">
                                 <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
                                 <input class="editable-title" value="${esc(list.title || 'List')}" 
-                                       onchange="updateSubListTitle('${sub.name}', ${liIdx}, this.value)"
+                                       onchange="updateSubListTitle('${subPathStr}', ${liIdx}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
                                 ${listLocBadge}
                                 ${ratingBadge}
                                 <span class="box-actions">
-                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubListLocationInSub('${sub.name}', ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
-                                    <i class="fas fa-plus" onclick="addSubItemToSub('${sub.name}', ${liIdx})" title="Add item"></i>
+                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubListLocationInSub('${subPathStr}', ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
+                                    <i class="fas fa-plus" onclick="addSubItemToSub('${subPathStr}', ${liIdx})" title="Add item"></i>
                                 </span>
                             </div>
                             <div class="list-items" style="max-height:calc(100% - 60px); overflow-y:auto;">
@@ -266,20 +294,20 @@ function renderMain() {
                         list.items.forEach((item, subIdx) => {
                             const icon = item.done ? 'fa-check-circle' : 'fa-circle';
                             const color = item.done ? '#f5e56b' : '#7a7a5a';
-                            const stars = renderRatingStars(item.rating, `setSubItemRatingInSub('${sub.name}', ${liIdx}, ${subIdx}, RATING_PLACEHOLDER)`);
+                            const stars = renderRatingStars(item.rating, `setSubItemRatingInSub('${subPathStr}', ${liIdx}, ${subIdx}, RATING_PLACEHOLDER)`);
                             const itemLocBadge = renderLocationBadge(item.location, true);
                             html += `
                                 <div class="sub-list-item">
-                                    <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItemInSub('${sub.name}', ${liIdx}, ${subIdx})" title="Toggle done"></i>
+                                    <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx})" title="Toggle done"></i>
                                     <textarea class="editable-item" rows="1"
-                                              onchange="updateSubItemInSub('${sub.name}', ${liIdx}, ${subIdx}, this.value)"
+                                              onchange="updateSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx}, this.value)"
                                               oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
                                               onfocus="this.select()">${esc(item.text)}</textarea>
                                     ${itemLocBadge}
                                     ${stars}
                                     <span class="item-tag">${item.done ? 'done' : 'pending'}</span>
-                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubItemLocationInSub('${sub.name}', ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
-                                    <i class="fas fa-times item-delete" onclick="deleteSubItemFromSub('${sub.name}', ${liIdx}, ${subIdx})" title="Delete item"></i>
+                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubItemLocationInSub('${subPathStr}', ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
+                                    <i class="fas fa-times item-delete" onclick="deleteSubItemFromSub('${subPathStr}', ${liIdx}, ${subIdx})" title="Delete item"></i>
                                 </div>
                             `;
                         });
@@ -289,7 +317,7 @@ function renderMain() {
                     
                     html += `
                             </div>
-                            <button class="add-item-btn" onclick="addSubItemToSub('${sub.name}', ${liIdx})"><i class="fas fa-plus"></i> Add item</button>
+                            <button class="add-item-btn" onclick="addSubItemToSub('${subPathStr}', ${liIdx})"><i class="fas fa-plus"></i> Add item</button>
                             <div class="resize-handle" onclick="event.stopPropagation();">
                                 <i class="fas fa-grip-lines"></i>
                             </div>
@@ -299,10 +327,12 @@ function renderMain() {
             }
             html += `</div>`;
             
+            const subPathStr = selectedSubsectionPath.join('/');
             html += `
                 <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #2a2a1a; display: flex; gap: 0.8rem; flex-wrap: wrap;">
-                    <button class="action-btn" onclick="addSubNote('${sub.name}')"><i class="fas fa-plus"></i> Add note</button>
-                    <button class="action-btn" onclick="addSubList('${sub.name}')"><i class="fas fa-plus"></i> Add list</button>
+                    <button class="action-btn" onclick="addSubNote('${subPathStr}')"><i class="fas fa-plus"></i> Add note</button>
+                    <button class="action-btn" onclick="addSubList('${subPathStr}')"><i class="fas fa-plus"></i> Add list</button>
+                    <button class="action-btn" onclick="addSubsection(${sec.id}, '${subPathStr}')"><i class="fas fa-plus"></i> Add nested subsection</button>
                 </div>
             `;
             
@@ -418,10 +448,11 @@ function renderMain() {
                 html += `<div class="subsections-list">`;
                 html += `<div style="color: #7a7a5a; font-size: 0.8rem; margin-bottom: 0.5rem;"><i class="fas fa-sitemap"></i> Subsections</div>`;
                 sec.subs.forEach(sub => {
+                    const escapedName = escJs(sub.name);
                     html += `
-                        <span class="subsection-item" onclick="selectSubsection(${sec.id}, '${sub.name}')">
+                        <span class="subsection-item" onclick="selectSubsection(${sec.id}, '${escapedName}')">
                             ${capitalize(sub.name)}
-                            <span class="sub-delete" onclick="event.stopPropagation(); deleteSubsection(${sec.id}, '${sub.name}')">
+                            <span class="sub-delete" onclick="event.stopPropagation(); deleteSubsection(${sec.id}, '${escapedName}')">
                                 <i class="fas fa-times"></i>
                             </span>
                         </span>
@@ -512,10 +543,11 @@ function updateSubItem(sectionId, listIndex, subIndex, newValue) {
 //  UPDATE FUNCTIONS - SUBSECTION
 // ============================================================
 
-function updateSubNoteTitle(subName, noteIndex, newValue) {
+function updateSubNoteTitle(subPath, noteIndex, newValue) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const note = sub.notes[noteIndex];
     if (!note) return;
@@ -525,10 +557,11 @@ function updateSubNoteTitle(subName, noteIndex, newValue) {
     }
 }
 
-function updateSubNoteContent(subName, noteIndex, newValue) {
+function updateSubNoteContent(subPath, noteIndex, newValue) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const note = sub.notes[noteIndex];
     if (!note) return;
@@ -536,10 +569,11 @@ function updateSubNoteContent(subName, noteIndex, newValue) {
     render();
 }
 
-function updateSubListTitle(subName, listIndex, newValue) {
+function updateSubListTitle(subPath, listIndex, newValue) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list) return;
@@ -549,10 +583,11 @@ function updateSubListTitle(subName, listIndex, newValue) {
     }
 }
 
-function updateSubItemInSub(subName, listIndex, subIndex, newValue) {
+function updateSubItemInSub(subPath, listIndex, subIndex, newValue) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
-    const sub = sec.subs.find(s => s.name === subName);
+    const pathArray = subPath.split('/');
+    const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list) return;
@@ -579,7 +614,7 @@ function makeDraggable() {
 
 function updateItemPosition(data, x, y) {
     if (!data) return;
-    const { type, sectionId, subName, index } = data;
+    const { type, sectionId, subPath, index } = data;
     
     if (type === 'section' || (sectionId !== null && type === undefined)) {
         const sec = sections.find(s => s.id === sectionId);
@@ -590,24 +625,25 @@ function updateItemPosition(data, x, y) {
     } else if (type === 'list') {
         const sec = sections.find(s => s.id === sectionId);
         if (sec && sec.items && sec.items[index]) { sec.items[index].x = x; sec.items[index].y = y; }
-    } else if (type === 'subNote') {
+    } else if (type === 'subNote' || type === 'subList') {
         const sec = sections.find(s => s.id === selectedSectionId);
-        if (sec && sec.subs) {
-            const sub = sec.subs.find(s => s.name === subName);
-            if (sub && sub.notes && sub.notes[index]) { sub.notes[index].x = x; sub.notes[index].y = y; }
-        }
-    } else if (type === 'subList') {
-        const sec = sections.find(s => s.id === selectedSectionId);
-        if (sec && sec.subs) {
-            const sub = sec.subs.find(s => s.name === subName);
-            if (sub && sub.items && sub.items[index]) { sub.items[index].x = x; sub.items[index].y = y; }
+        if (sec && subPath) {
+            const pathArray = subPath.split('/');
+            const sub = getSubsectionByPath(sec, pathArray);
+            if (sub) {
+                if (type === 'subNote' && sub.notes && sub.notes[index]) {
+                    sub.notes[index].x = x; sub.notes[index].y = y;
+                } else if (type === 'subList' && sub.items && sub.items[index]) {
+                    sub.items[index].x = x; sub.items[index].y = y;
+                }
+            }
         }
     }
 }
 
 function updateItemSize(data, width, height) {
     if (!data) return;
-    const { type, sectionId, subName, index } = data;
+    const { type, sectionId, subPath, index } = data;
     
     if (type === 'section' || (sectionId !== null && type === undefined)) {
         const sec = sections.find(s => s.id === sectionId);
@@ -618,17 +654,18 @@ function updateItemSize(data, width, height) {
     } else if (type === 'list') {
         const sec = sections.find(s => s.id === sectionId);
         if (sec && sec.items && sec.items[index]) { sec.items[index].width = width; sec.items[index].height = height; }
-    } else if (type === 'subNote') {
+    } else if (type === 'subNote' || type === 'subList') {
         const sec = sections.find(s => s.id === selectedSectionId);
-        if (sec && sec.subs) {
-            const sub = sec.subs.find(s => s.name === subName);
-            if (sub && sub.notes && sub.notes[index]) { sub.notes[index].width = width; sub.notes[index].height = height; }
-        }
-    } else if (type === 'subList') {
-        const sec = sections.find(s => s.id === selectedSectionId);
-        if (sec && sec.subs) {
-            const sub = sec.subs.find(s => s.name === subName);
-            if (sub && sub.items && sub.items[index]) { sub.items[index].width = width; sub.items[index].height = height; }
+        if (sec && subPath) {
+            const pathArray = subPath.split('/');
+            const sub = getSubsectionByPath(sec, pathArray);
+            if (sub) {
+                if (type === 'subNote' && sub.notes && sub.notes[index]) {
+                    sub.notes[index].width = width; sub.notes[index].height = height;
+                } else if (type === 'subList' && sub.items && sub.items[index]) {
+                    sub.items[index].width = width; sub.items[index].height = height;
+                }
+            }
         }
     }
 }
@@ -652,7 +689,7 @@ function startDrag(e) {
         startTop: rect.top - (containerRect ? containerRect.top : 0),
         type: box.dataset.type || (box.dataset.sectionId ? 'section' : null),
         sectionId: box.dataset.sectionId ? parseInt(box.dataset.sectionId) : null,
-        subName: box.dataset.subName || null,
+        subPath: box.dataset.subPath || null,
         index: box.dataset.index !== undefined ? parseInt(box.dataset.index) : null
     };
     
@@ -726,7 +763,7 @@ function startResize(e) {
         startTop: rect.top - (containerRect ? containerRect.top : 0),
         type: box.dataset.type || (box.dataset.sectionId ? 'section' : null),
         sectionId: box.dataset.sectionId ? parseInt(box.dataset.sectionId) : null,
-        subName: box.dataset.subName || null,
+        subPath: box.dataset.subPath || null,
         index: box.dataset.index !== undefined ? parseInt(box.dataset.index) : null
     };
     

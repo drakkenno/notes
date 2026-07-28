@@ -1,8 +1,8 @@
 // ============================================================
 //  CONFIGURATION - Set your Vercel API URL here
 // ============================================================
-const VERCEL_API_URL = 'https://notes-3km3s0hqp-drakenotes1.vercel.app/api/notes';
-const AUTH_API_URL = 'https://notes-3km3s0hqp-drakenotes1.vercel.app/api/auth';
+const VERCEL_API_URL = 'https://notes-b1ygpe9nf-drakenotes1.vercel.app/api/notes';
+const AUTH_API_URL = 'https://notes-b1ygpe9nf-drakenotes1.vercel.app/api/auth';
 
 // ============================================================
 //  STATE
@@ -13,10 +13,7 @@ let isSyncing = false;
 let saveTimeout = null;
 let isVercelConfigured = false;
 let selectedSectionId = null;
-let selectedSubsection = null;
-
-// Auth state
-let currentUser = null; // { username, gistId }
+let selectedSubsectionPath = []; // Array of subsection names representing the path
 
 const STORAGE_KEY = 'notesAppData';
 const AUTH_STORAGE_KEY = 'notesAppUser';
@@ -51,6 +48,17 @@ function esc(str) {
     return div.innerHTML;
 }
 
+function escJs(str) {
+    if (!str) return '';
+    return str
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+}
+
 function genId() { return nextId++; }
 
 // ============================================================
@@ -66,6 +74,51 @@ function getDefaultBoxSize(index) {
         x: 10 + (i * 30) % 350,
         y: 10 + (i * 40) % 250
     };
+}
+
+// ============================================================
+//  NAVIGATION HELPERS
+// ============================================================
+function getCurrentSubsection() {
+    // Returns the subsection object at the current path, or null
+    if (selectedSubsectionPath.length === 0) return null;
+    
+    const sec = sections.find(s => s.id === selectedSectionId);
+    if (!sec || !sec.subs) return null;
+    
+    let current = sec.subs;
+    let sub = null;
+    
+    for (let i = 0; i < selectedSubsectionPath.length; i++) {
+        const name = selectedSubsectionPath[i];
+        sub = current.find(s => s.name === name);
+        if (!sub) return null;
+        if (i < selectedSubsectionPath.length - 1) {
+            current = sub.subs || [];
+        }
+    }
+    
+    return sub;
+}
+
+function getParentSubsection() {
+    // Returns the parent subsection object, or null if at section level
+    if (selectedSubsectionPath.length <= 1) return null;
+    
+    const sec = sections.find(s => s.id === selectedSectionId);
+    if (!sec || !sec.subs) return null;
+    
+    let current = sec.subs;
+    let sub = null;
+    
+    for (let i = 0; i < selectedSubsectionPath.length - 1; i++) {
+        const name = selectedSubsectionPath[i];
+        sub = current.find(s => s.name === name);
+        if (!sub) return null;
+        current = sub.subs || [];
+    }
+    
+    return sub;
 }
 
 // ============================================================
