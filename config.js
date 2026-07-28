@@ -1,8 +1,8 @@
 // ============================================================
 //  CONFIGURATION - Set your Vercel API URL here
 // ============================================================
-const VERCEL_API_URL = 'https://notes-4618fa0af-drakenotes1.vercel.app/api/notes';
-const AUTH_API_URL = 'https://notes-4618fa0af-drakenotes1.vercel.app/api/auth';
+const VERCEL_API_URL = 'https://notes-54ytrb8h8-drakenotes1.vercel.app/api/notes';
+const AUTH_API_URL = 'https://notes-54ytrb8h8-drakenotes1.vercel.app/api/auth';
 
 // ============================================================
 //  STATE
