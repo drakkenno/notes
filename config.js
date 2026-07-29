@@ -1,8 +1,8 @@
 // ============================================================
 //  CONFIGURATION - Set your Vercel API URL here
 // ============================================================
-const VERCEL_API_URL = 'https://notes-qz019dfhz-drakenotes1.vercel.app/api/notes';
-const AUTH_API_URL = 'https://notes-qz019dfhz-drakenotes1.vercel.app/api/auth';
+const VERCEL_API_URL = 'https://notes-blsp0zwdt-drakenotes1.vercel.app/api/notes';
+const AUTH_API_URL = 'https://notes-blsp0zwdt-drakenotes1.vercel.app/api/auth';
 
 // ============================================================
 //  STATE
@@ -14,7 +14,7 @@ let saveTimeout = null;
 let isVercelConfigured = false;
 let selectedSectionId = null;
 let selectedSubsectionPath = []; // Array of subsection names representing the path
-
+let currentUser = null; // Authenticated user session
 const STORAGE_KEY = 'notesAppData';
 const AUTH_STORAGE_KEY = 'notesAppUser';
 

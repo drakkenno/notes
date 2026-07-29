@@ -991,4 +991,13 @@ body {
     line-height: 1.6;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-}
+}/* Sidebar labels are controls, not text fields. */
+#sidebar, #sidebar .section-title, #sidebar .subsection-list li { user-select: none; caret-color: transparent; }
+#sidebar .section-title span, #sidebar .subsection-list li { cursor: pointer; }
+/* Shared sections follow the same card layout as personal sections. */
+.shared-subsection-grid { margin: 0.8rem 0; gap: 0.8rem; }
+.shared-subsection-grid .note-box { position: relative !important; min-height: 120px; width: auto !important; height: auto !important; }
+.shared-subsection-grid .shared-subsection-grid { margin-left: 0.7rem; border-left: 1px solid #2a2a1a; padding-left: 0.7rem; }
+.shared-recipients { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The shared editor intentionally uses the personal renderer; permissions only change available controls. */
+.shared-editor-readonly .editable-title, .shared-editor-readonly .editable-content, .shared-editor-readonly .editable-item { cursor: default; }

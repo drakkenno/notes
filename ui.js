@@ -6,6 +6,7 @@ function render() {
     renderSidebar();
     if (isSharedSectionsView) { renderSharedSections(); return; }
     renderMain();
+    scheduleSharedSectionSync();
     saveLocalData();
     if (isVercelConfigured && !isSyncing) {
         clearTimeout(saveTimeout);

@@ -426,3 +426,23 @@ window.setSubListLocationInSub = function(subPath, listIndex) {
         render();
     }
 };
+// Stop sharing leaves the personal source intact; deletion removes every linked shared copy.
+window.stopSharingSection = async function(id) {
+    const section = sections.find(item => item.id === id);
+    if (!section?.sharedShareIds?.length || !confirm('Stop sharing "' + capitalize(section.name) + '"? Your personal section will remain.')) return;
+    try {
+        for (const shareId of section.sharedShareIds) await sharedApi('POST', { action: 'stop-sharing', shareId });
+        section.sharedShareIds = [];
+        await loadSharedSections(); render(); showSaveIndicator('Sharing stopped');
+    } catch (error) { showSaveIndicator(error.message, true); }
+};
+window.deleteSection = async function(id) {
+    const sec = sections.find(s => s.id === id);
+    if (!sec || !confirm('Delete section "' + capitalize(sec.name) + '" and all of its shared copies? This cannot be undone.')) return;
+    try {
+        for (const shareId of sec.sharedShareIds || []) await sharedApi('POST', { action: 'delete-section', shareId });
+        sections = sections.filter(s => s.id !== id);
+        if (selectedSectionId === id) { selectedSectionId = null; selectedSubsectionPath = []; }
+        await loadSharedSections(); render();
+    } catch (error) { showSaveIndicator('Section was not deleted: ' + error.message, true); }
+};
