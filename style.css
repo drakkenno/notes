@@ -372,6 +372,14 @@ body {
     padding: 0;
 }
 
+.shared-section-box .shared-by {
+    position: absolute;
+    right: 1.2rem;
+    bottom: 1rem;
+    color: #7a7a5a;
+    font-size: 0.78rem;
+}
+
 /* ── Responsive grid used inside sections / subsections ── */
 .box-grid--responsive {
     position: relative;
@@ -966,3 +974,21 @@ body {
     .canvas { padding: 0.8rem; }
 }
 .login-overlay{position:fixed;inset:0;z-index:1000;display:none;place-items:center;background:rgba(0,0,0,.82);padding:1rem}.login-overlay.visible{display:grid}.login-overlay.hidden{display:none}.auth-card{width:min(100%,420px);padding:2rem;border:1px solid #f5e56b;border-radius:14px;background:#161610;color:#f5e56b;box-shadow:0 20px 60px #000}.auth-card h1,.auth-card h2{margin:0 0 1rem}.auth-subtitle{color:#b8a84a;margin:0 0 1rem}.auth-card form{display:grid;gap:.75rem}.auth-card input{padding:.75rem;border:1px solid #777;border-radius:6px;background:#0b0b0b;color:#fff}.auth-btn,.auth-link{padding:.7rem;border-radius:6px;cursor:pointer}.auth-btn{border:0;background:#f5e56b;color:#111;font-weight:700}.auth-btn.danger{background:#c94343;color:#fff}.auth-link{border:0;background:transparent;color:#f5e56b}.auth-message{display:none;margin:.75rem 0;padding:.6rem;border-radius:6px}.auth-error{background:#542020;color:#ffd4d4}.auth-success{background:#1f4d2a;color:#d7ffe0}.user-actions{display:flex;align-items:center;gap:.35rem;margin-bottom:.7rem;font-size:.78rem}.user-action-btn{background:transparent;color:#f5e56b;border:0;cursor:pointer;padding:.3rem}.admin-user-row{display:flex;gap:.5rem;align-items:center;justify-content:space-between;border-top:1px solid #383820;padding:.6rem 0}.admin-delete-btn{border:0;border-radius:4px;background:#c94343;color:#fff;padding:.3rem .5rem;cursor:pointer}
+
+.shared-access-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border: 1px solid #2a2a1a;
+    border-radius: 40px;
+    color: #b8a84a;
+    font-size: 0.75rem;
+}
+
+.shared-readonly-content {
+    color: #d4c45a;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

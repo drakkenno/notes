@@ -199,12 +199,14 @@ function saveLocalData() {
 // ============================================================
 
 function selectSection(sectionId) {
+    isSharedSectionsView = false;
     selectedSectionId = sectionId;
     selectedSubsectionPath = [];
     render();
 }
 
 function selectSubsection(sectionId, subsectionPath) {
+    isSharedSectionsView = false;
     selectedSectionId = parseInt(sectionId);
     // subsectionPath can be a string (for backward compatibility) or an array
     if (Array.isArray(subsectionPath)) {
@@ -260,7 +262,11 @@ function renderSidebar() {
         sidebarContainer.innerHTML = '';
         return;
     }
-    let html = `<button class="add-section-btn" onclick="showSharedSections()"><i class="fas fa-share-alt"></i> Shared Sections</button>`;
+    let html = `<div class="section-group">
+                    <div class="section-title ${isSharedSectionsView ? 'active' : ''}" onclick="showSharedSections()">
+                        <span><i class="fas fa-share-alt" style="margin-right:6px;"></i> Shared Sections</span>
+                    </div>
+                </div>`;
     sections.forEach((sec) => {
         const isActive = selectedSectionId === sec.id && selectedSubsectionPath.length === 0;
         html += `<div class="section-group" data-section-id="${sec.id}">`;
