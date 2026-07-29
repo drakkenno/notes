@@ -1,5 +1,5 @@
 // Recipient-based section sharing
-const SHARED_API_URL = 'https://notes-b1ygpe9nf-drakenotes1.vercel.app/api/shared';
+const SHARED_API_URL = 'https://notes-qz019dfhz-drakenotes1.vercel.app/api/shared';
 let sharedSections = [];
 let isSharedSectionsView = false;
 
@@ -66,7 +66,7 @@ function renderSharedSections() {
         sharedSections.forEach(share => {
             const section = share.section;
             const canDelete = share.owner === currentUser.username;
-            html += `<article class="shared-folder-card"><div class="shared-folder-title"><i class="fas fa-folder-open"></i> ${esc(section.name)}</div><div class="shared-folder-content">${(section.notes || []).length} notes · ${(section.items || []).length} lists · ${(section.subs || []).length} subsections</div><div class="shared-folder-meta">Shared by ${esc(share.owner)}</div>${canDelete ? `<button class="box-delete-btn" onclick="deleteSharedSection(${share.id})" title="Remove share"><i class="fas fa-times"></i></button>` : ''}</article>`;
+            html += `<article class="shared-folder-card"><div class="shared-folder-title"><i class="fas fa-folder-open"></i> ${esc(section.name)}</div><div class="shared-folder-content">${(section.notes || []).length} notes ï¿½ ${(section.items || []).length} lists ï¿½ ${(section.subs || []).length} subsections</div><div class="shared-folder-meta">Shared by ${esc(share.owner)}</div>${canDelete ? `<button class="box-delete-btn" onclick="deleteSharedSection(${share.id})" title="Remove share"><i class="fas fa-times"></i></button>` : ''}</article>`;
         });
         html += '</div>';
     }
