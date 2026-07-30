@@ -482,3 +482,61 @@ scheduleSharedSectionSync = function() {
         }
     }, 800);
 };
+
+// Owners manage recipients and access level directly from the shared section.
+window.manageSharedAccess = async function(shareId) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const isOwner = currentUser?.username === 'drakeno' || share?.owner === currentUser?.username;
+    if (!share || !isOwner) return;
+    try {
+        const data = await sharedApi('POST', { action: 'list-share-users' });
+        const users = (data.users || []).filter(name => name !== share.owner);
+        const overlay = document.createElement('div');
+        overlay.className = 'login-overlay visible';
+        overlay.innerHTML = `<section class="auth-card share-access-card"><h2>Manage access</h2>
+            <p class="share-owner-label"><i class="fas fa-user"></i> Shared from <strong>${esc(share.owner)}</strong></p>
+            <label>People with access</label>
+            <select id="manageShareRecipients" multiple size="${Math.min(Math.max(users.length, 3), 8)}">${users.map(name => `<option value="${esc(name)}" ${share.recipients.includes(name) ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select>
+            <label>Access for selected people</label>
+            <select id="manageSharePermission"><option value="reader" ${share.permission === 'reader' ? 'selected' : ''}>Reader</option><option value="contributor" ${share.permission === 'contributor' ? 'selected' : ''}>Contributor</option></select>
+            <p class="share-access-help">Readers can view this section. Contributors can edit it.</p>
+            <div><button class="auth-btn" id="manageShareSave">Save access</button><button class="auth-link" id="manageShareCancel">Cancel</button></div></section>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#manageShareCancel').onclick = () => overlay.remove();
+        overlay.querySelector('#manageShareSave').onclick = async () => {
+            const recipients = [...overlay.querySelector('#manageShareRecipients').selectedOptions].map(option => option.value);
+            if (!recipients.length) return alert('Select at least one recipient. Use Stop sharing to remove the share entirely.');
+            const permission = overlay.querySelector('#manageSharePermission').value;
+            try {
+                const result = await sharedApi('POST', { action: 'manage-share', shareId: share.id, recipients, permission });
+                const index = sharedSections.findIndex(item => item.id === share.id);
+                if (index !== -1) sharedSections[index] = result.share;
+                overlay.remove(); render(); showSaveIndicator('Sharing access updated');
+            } catch (error) { alert(error.message || 'Could not update access'); }
+        };
+    } catch (error) { showSaveIndicator(error.message, true); }
+};
+
+const renderSharedSectionsWithAccessManagement = renderSharedSections;
+renderSharedSections = function() {
+    renderSharedSectionsWithAccessManagement();
+    const share = sharedSections.find(item => item.id == selectedSharedSectionId);
+    const isOwner = currentUser?.username === 'drakeno' || share?.owner === currentUser?.username;
+    if (!share) return;
+    const header = mainContainer.querySelector('.canvas-header');
+    if (!header) return;
+    if (isOwner && !header.querySelector('.manage-sharing-btn')) {
+        const button = document.createElement('button');
+        button.className = 'action-btn manage-sharing-btn';
+        button.innerHTML = '<i class="fas fa-user-cog"></i> Manage access';
+        button.title = 'Manage who can access this shared section';
+        button.onclick = () => manageSharedAccess(share.id);
+        header.appendChild(button);
+    }
+    if (!header.querySelector('.shared-from-label')) {
+        const label = document.createElement('span');
+        label.className = 'shared-from-label';
+        label.innerHTML = `<i class="fas fa-user"></i> Shared from ${esc(share.owner)}`;
+        header.querySelector('.title-section')?.appendChild(label);
+    }
+};
