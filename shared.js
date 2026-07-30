@@ -27,6 +27,7 @@ window.showSharedSections = async function() {
     selectedSharedSectionId = null;
     selectedSectionId = null;
     selectedSubsectionPath = [];
+    selectedSharedSubsectionPath = [];
     try { await loadSharedSections(); } catch (error) { showSaveIndicator(error.message, true); }
     render();
 };
@@ -75,6 +76,7 @@ window.selectSharedSection = function(shareId) {
 
 window.closeSharedSection = function() {
     selectedSharedSectionId = null;
+    selectedSharedSubsectionPath = [];
     render();
 };
 
@@ -136,7 +138,7 @@ window.toggleSharedListItem = function(shareId, listIndex, itemIndex) {
 };
 
 function renderSharedSections() {
-    const selectedShare = sharedSections.find(share => share.id === selectedSharedSectionId);
+    const selectedShare = sharedSections.find(share => share.id == selectedSharedSectionId);
     if (selectedShare) return renderSharedSection(selectedShare);
 
     let html = '<div class="canvas"><div class="canvas-header"><div class="title-section"><i class="fas fa-share-alt"></i><h1>Shared Sections</h1></div><button class="back-btn" onclick="isSharedSectionsView=false; render()"><i class="fas fa-arrow-left"></i> Back</button></div>';
@@ -164,13 +166,15 @@ function renderSharedSections() {
     mainContainer.innerHTML = html + '</div>';
 }
 
-function renderSharedSubsectionTree(subs, depth = 1) {
+function renderSharedSubsectionTree(subs, shareId, depth = 1, parentPath = []) {
     if (!Array.isArray(subs) || subs.length === 0) return '';
     return `<ul class="subsection-list shared-subsection-tree">${subs.map(sub => {
+        const path = [...parentPath, sub.name];
+        const pathStr = escJs(path.join('/'));
         const notes = sub.notes || [];
         const lists = sub.items || [];
-        const summary = `${notes.length} notes � ${lists.length} lists${sub.subs?.length ? ` � ${sub.subs.length} subsections` : ''}`;
-        return `<li style="padding-left:${depth * 1.2}rem"><i class="fas fa-folder-open"></i> <strong>${esc(sub.name)}</strong><span class="shared-subsection-summary">${summary}</span>${renderSharedSubsectionTree(sub.subs, depth + 1)}</li>`;
+        const summary = `${notes.length} notes · ${lists.length} lists${sub.subs?.length ? ` · ${sub.subs.length} subsections` : ''}`;
+        return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-folder-open"></i> <strong>${esc(sub.name)}</strong><span class="shared-subsection-summary">${summary}</span>${renderSharedSubsectionTree(sub.subs, shareId, depth + 1, path)}</li>`;
     }).join('')}</ul>`;
 }
 function renderSharedSection(share) {
@@ -204,7 +208,7 @@ function renderSharedSection(share) {
         html += '</div>';
     }
     if ((section.subs || []).length) {
-        html += `<section class="subsections-list"><div class="shared-folder-title"><i class="fas fa-sitemap"></i> Subsections</div>${renderSharedSubsectionTree(section.subs)}</section>`;
+        html += `<section class="subsections-list"><div class="shared-folder-title"><i class="fas fa-sitemap"></i> Subsections</div>${renderSharedSubsectionTree(section.subs, share.id)}</section>`;
     }
     mainContainer.innerHTML = html + '</div>';
     setTimeout(autoResizeTextareas, 10);
@@ -282,7 +286,7 @@ setInterval(async () => {
 const renderSharedSectionsWithStopControl = renderSharedSections;
 renderSharedSections = function() {
     renderSharedSectionsWithStopControl();
-    const share = sharedSections.find(item => item.id === selectedSharedSectionId);
+    const share = sharedSections.find(item => item.id == selectedSharedSectionId);
     if (!share || (currentUser.username !== 'drakeno' && share.owner !== currentUser.username)) return;
     const header = mainContainer.querySelector('.canvas-header');
     if (!header || header.querySelector('.stop-sharing-btn')) return;
@@ -350,11 +354,18 @@ renderSharedSection = function(share) {
         let rows = ''; (list.items || []).forEach((item, itemIndex) => { const value = editable ? '<textarea class="editable-item" rows="1" onchange="updateSharedSubsectionValue(' + share.id + ', \'" + path + "\', \'item\', ' + listIndex + ', ' + itemIndex + ', \'text\', this.value)">' + esc(item.text || '') + '</textarea>' : '<span>' + esc(item.text || '') + '</span>'; rows += '<div class="sub-list-item">' + value + '</div>'; });
         html += '<article class="list-box"><div class="box-title"><i class="fas fa-list-ul"></i>' + title + '</div><div class="list-items">' + (rows || '<div class="empty-message">No items</div>') + '</div></article>';
     });
-    if (!(sub.notes || []).length && !(sub.items || []).length) html += '<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>This subsection is empty.</p></div>';
+    // Show nested subsections as clickable cards
+    if (sub.subs && sub.subs.length > 0) {
+        html += '<div class="subsections-list" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #2a2a1a;width:100%;">';
+        html += '<div class="shared-folder-title"><i class="fas fa-sitemap"></i> Subsections</div>';
+        html += renderSharedSubsectionCards(sub.subs, share.id, 1, selectedSharedSubsectionPath);
+        html += '</div>';
+    }
+    if (!(sub.notes || []).length && !(sub.items || []).length && !(sub.subs || []).length) html += '<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>This subsection is empty.</p></div>';
     html += '</div></div>'; mainContainer.innerHTML = html; setTimeout(autoResizeTextareas, 10);
 };
 // Shared subsections use the same card vocabulary as personal sections instead of an unformatted list.
-function renderSharedSubsectionTree(subs, depth = 1, parentPath = []) {
+function renderSharedSubsectionCards(subs, shareId, depth = 1, parentPath = []) {
     if (!Array.isArray(subs) || !subs.length) return '';
     return '<div class="box-grid--responsive shared-subsection-grid">' + subs.map((sub, index) => {
         const path = [...parentPath, sub.name];
@@ -365,7 +376,7 @@ function renderSharedSubsectionTree(subs, depth = 1, parentPath = []) {
         const x = sub.x !== undefined ? sub.x : 20 + index * 24;
         const y = sub.y !== undefined ? sub.y : 20 + index * 24;
         const body = '<div class="note-content">' + noteCount + ' notes &middot; ' + listCount + ' lists' + (childCount ? ' &middot; ' + childCount + ' subsections' : '') + '</div>';
-        return '<article class="note-box shared-section-box" style="left:' + x + 'px;top:' + y + 'px;cursor:pointer" onclick="event.stopPropagation(); openSharedSubsection(' + selectedSharedSectionId + ', \'" + pathValue + "\')"><div class="box-title"><i class="fas fa-folder-open"></i><span>' + esc(capitalize(sub.name)) + '</span></div>' + body + renderSharedSubsectionTree(sub.subs, depth + 1, path) + '</article>';
+        return '<article class="note-box shared-section-box" style="left:' + x + 'px;top:' + y + 'px;cursor:pointer" onclick="event.stopPropagation(); openSharedSubsection(' + shareId + ", '" + pathValue + "')" + '"><div class="box-title"><i class="fas fa-folder-open"></i><span>' + esc(capitalize(sub.name)) + '</span></div>' + body + renderSharedSubsectionCards(sub.subs, shareId, depth + 1, path) + '</article>';
     }).join('') + '</div>';
 }
 const renderSharedSectionWithRoleHeader = renderSharedSection;
@@ -406,7 +417,15 @@ window.openSharedFromSidebar = function(shareId) {
     activeSharedEditorId = share.id; sharedEditorLastSnapshot = JSON.stringify(share.section); sections = [share.section]; nextId = Math.max(1, Number(share.section.id || 0) + 1);
     selectedSectionId = share.section.id; selectedSubsectionPath = []; isSharedSectionsView = false; render();
 };
-window.selectSharedSection = window.openSharedFromSidebar;
+window.selectSharedSection = function(shareId) {
+    selectedSharedSectionId = Number(shareId);
+    isSharedSectionsView = true;
+    selectedSectionId = null;
+    selectedSubsectionPath = [];
+    selectedSharedSubsectionPath = [];
+    activeSharedEditorId = null;
+    render();
+};
 render = function() {
     const share = activeSharedEditorShare();
     if (!share) return normalRenderForSharedEditor();

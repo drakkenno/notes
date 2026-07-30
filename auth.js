@@ -65,6 +65,20 @@ function hideLoginOverlay() {
 }
 
 // ============================================================
+//  OFFLINE MODE - Use the app without authentication
+// ============================================================
+window.useOffline = function() {
+    currentUser = null;
+    hideLoginOverlay();
+    updateSyncStatus('local');
+    const statusTextEl = document.getElementById('statusText');
+    if (statusTextEl) {
+        statusTextEl.innerHTML = `Cloud sync: <span class="disconnected">offline mode</span>`;
+    }
+    console.log('📝 Using Notes in offline mode');
+};
+
+// ============================================================
 //  UPDATE UI WITH USER INFO
 // ============================================================
 function updateUserDisplay() {

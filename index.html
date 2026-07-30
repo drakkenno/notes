@@ -39,6 +39,9 @@
                 <button class="auth-btn danger" type="submit">Delete my account</button><button class="auth-link" type="button" onclick="hideLoginOverlay()">Cancel</button>
             </form>
             <section id="adminPanel" style="display:none"><h2>Admin panel</h2><p class="auth-subtitle">Manage user accounts.</p><div id="adminLoading">Loading users...</div><div id="adminUserList"></div><button class="auth-link" type="button" onclick="hideAdminPanel()">Close</button></section>
+            <div style="margin-top: 1rem; text-align: center; border-top: 1px solid #2a2a1a; padding-top: 1rem;">
+                <button class="auth-link" type="button" onclick="useOffline()" style="font-size: 0.85rem;"><i class="fas fa-database"></i> Continue offline</button>
+            </div>
         </section>
     </div>
 
