@@ -6,7 +6,6 @@ function render() {
     renderSidebar();
     if (isSharedSectionsView) { renderSharedSections(); return; }
     renderMain();
-    scheduleSharedSectionSync();
     saveLocalData();
     // Auto-sync removed - use Push button to sync manually
 }

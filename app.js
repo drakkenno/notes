@@ -28,6 +28,7 @@ async function saveToVercel(data) {
                 name: sec.name,
                 subs: sec.subs || [],
                 sharedShareIds: sec.sharedShareIds || [],
+                shareKey: sec.shareKey || undefined,
                 notes: sec.notes || [],
                 items: sec.items || [],
                 width: sec.width || 300,
@@ -230,40 +231,16 @@ async function pullFromVercel() {
     updateSyncStatus('syncing');
     pullBtn.disabled = true;
     pullBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pulling...';
-    
+
     try {
         const data = await loadFromVercel();
-        
         if (data && data.sections) {
-            // MERGE cloud data with local data instead of replacing
-            const mergeResult = mergeData({ sections, nextId }, data, 'pull');
-            const merged = mergeResult.merged;
-            const conflicts = mergeResult.conflicts;
-            
-            // Show confirmation if there are conflicts
-            if (conflicts.length > 0) {
-                const conflictList = conflicts.slice(0, 10).map(c => {
-                    if (c.type === 'note') {
-                        const location = c.subsection ? `${c.section} / ${c.subsection}` : c.section;
-                        return `• "${c.title}" in ${location}`;
-                    }
-                    return `• ${c.title} in ${c.section}`;
-                }).join('\n');
-                
-                const moreMsg = conflicts.length > 10 ? `\n...and ${conflicts.length - 10} more` : '';
-                
-                const message = `⚠️ The following items have different content in the cloud and will overwrite your local data:\n\n${conflictList}${moreMsg}\n\nDo you want to continue?`;
-                
-                if (!confirm(message)) {
-                    showSaveIndicator('Merge cancelled', false);
-                    return;
-                }
-            }
-            
-            sections = merged.sections;
-            nextId = merged.nextId;
-            
-            // Ensure all sections have position properties
+            // Pull is an explicit request to make this device match the cloud.
+            // Additive merging resurrected items that had been deleted because
+            // an absence from one copy was ignored.
+            sections = JSON.parse(JSON.stringify(data.sections));
+            nextId = data.nextId || 1;
+
             sections = sections.map(sec => {
                 if (!sec.width) sec.width = 300;
                 if (!sec.height) sec.height = 200;
@@ -272,25 +249,25 @@ async function pullFromVercel() {
                 if (!sec.subs) sec.subs = [];
                 if (!sec.notes) sec.notes = [];
                 if (!sec.items) sec.items = [];
-                if (sec.subs) {
-                    sec.subs.forEach(sub => {
-                        if (!sub.subs) sub.subs = [];
-                        if (!sub.notes) sub.notes = [];
-                        if (!sub.items) sub.items = [];
-                    });
-                }
+                sec.subs.forEach(sub => {
+                    if (!sub.subs) sub.subs = [];
+                    if (!sub.notes) sub.notes = [];
+                    if (!sub.items) sub.items = [];
+                });
                 return sec;
             });
-            
+
+            // Pull refreshes both personal and shared data.
+            if (typeof loadSharedSections === 'function') await loadSharedSections();
             render();
-            showSaveIndicator('✅ Pulled & merged with cloud!');
+            showSaveIndicator('Pulled from cloud!');
             updateStatusPanel(true);
         } else {
-            showSaveIndicator('ℹ️ No data in cloud', false);
+            showSaveIndicator('No data in cloud', false);
         }
     } catch (error) {
         console.error('Pull failed:', error);
-        showSaveIndicator('❌ Pull failed: ' + error.message, true);
+        showSaveIndicator('Pull failed: ' + error.message, true);
     } finally {
         isSyncing = false;
         updateSyncStatus('synced');
@@ -318,76 +295,35 @@ async function pushToVercel() {
     updateSyncStatus('syncing');
     pushBtn.disabled = true;
     pushBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pushing...';
-    
+
     try {
-        // Check if we have data to push
-        if (!sections || sections.length === 0) {
-            showSaveIndicator('ℹ️ No local data to push', false);
-            return;
-        }
-        
-        // Get existing cloud data and MERGE with local data
-        const existingData = await loadFromVercel();
-        let saveData;
-        
-        if (existingData && existingData.sections && existingData.sections.length > 0) {
-            // Merge local data INTO cloud data (cloud is the base, local changes are merged in)
-            const mergeResult = mergeData(existingData, { sections, nextId }, 'push');
-            const merged = mergeResult.merged;
-            const conflicts = mergeResult.conflicts;
-            
-            // Show confirmation if there are conflicts
-            if (conflicts.length > 0) {
-                const conflictList = conflicts.slice(0, 10).map(c => {
-                    if (c.type === 'note') {
-                        const location = c.subsection ? `${c.section} / ${c.subsection}` : c.section;
-                        return `• "${c.title}" in ${location}`;
-                    }
-                    return `• ${c.title} in ${c.section}`;
-                }).join('\n');
-                
-                const moreMsg = conflicts.length > 10 ? `\n...and ${conflicts.length - 10} more` : '';
-                
-                const message = `⚠️ The following items have different content in local and will overwrite cloud data:\n\n${conflictList}${moreMsg}\n\nDo you want to continue?`;
-                
-                if (!confirm(message)) {
-                    showSaveIndicator('Push cancelled', false);
-                    return;
-                }
-            }
-            
-            saveData = {
-                sections: merged.sections.map(sec => ({
-                    ...sec,
-                    width: sec.width || 300,
-                    height: sec.height || 200,
-                    x: sec.x || 10,
-                    y: sec.y || 10
-                })),
-                nextId: merged.nextId
-            };
-        } else {
-            // No cloud data - just push local
-            saveData = {
-                sections: sections.map(sec => ({
-                    ...sec,
-                    width: sec.width || 300,
-                    height: sec.height || 200,
-                    x: sec.x || 10,
-                    y: sec.y || 10
-                })),
-                nextId: nextId
-            };
-        }
-        
+        // An empty array is a valid state: it may mean the user deleted every section.
+        if (!sections) throw new Error('No local data to push');
+
+        // Push replaces the cloud copy with this device's data, so deletions
+        // do not get lost when stale cloud entries are merged back in.
+        const saveData = {
+            sections: sections.map(sec => ({
+                ...sec,
+                width: sec.width || 300,
+                height: sec.height || 200,
+                x: sec.x || 10,
+                y: sec.y || 10
+            })),
+            nextId: nextId
+        };
+
         const success = await saveToVercel(saveData);
         if (success) {
-            showSaveIndicator('✅ Pushed & merged to cloud!');
+            // Synchronize linked shares only as part of this explicit Push action.
+            if (typeof syncAllSharedSectionsNow === 'function') await syncAllSharedSectionsNow();
+            if (typeof pushPendingSharedSectionsNow === 'function') await pushPendingSharedSectionsNow();
+            showSaveIndicator('Pushed to cloud!');
             updateStatusPanel(true);
         }
     } catch (error) {
         console.error('Push failed:', error);
-        showSaveIndicator('❌ Push failed: ' + error.message, true);
+        showSaveIndicator('Push failed: ' + error.message, true);
     } finally {
         isSyncing = false;
         updateSyncStatus('synced');
@@ -613,7 +549,10 @@ function sharedSidebarSubtree(subs, shareId, depth = 1, parentPath = []) {
     return '<ul class="subsection-list">' + subs.map(sub => {
         const path = [...parentPath, sub.name];
         const pathStr = escJs(path.join('/'));
-        return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-circle"></i> ${capitalize(sub.name)}</li>${sharedSidebarSubtree(sub.subs, shareId, depth + 1, path)}`;
+        const share = sharedSections.find(item => item.id === Number(shareId));
+        const add = canEditSharedSection(share) ? `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSharedSubsection(${shareId}, '${pathStr}')" title="Add nested subsection"></i>` : '';
+        const remove = isSharedOwner(share) ? `<i class="fas fa-times" onclick="event.stopPropagation(); deleteSharedSubsection(${shareId}, '${pathStr}')" title="Delete subsection"></i>` : '';
+        return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-circle"></i> ${capitalize(sub.name)}<span class="section-actions">${add}${remove}</span></li>${sharedSidebarSubtree(sub.subs, shareId, depth + 1, path)}`;
     }).join('') + '</ul>';
 }
 
@@ -631,7 +570,7 @@ function renderSidebar() {
             html += `<div class="section-title" style="padding-left:1rem" onclick="toggleSharedOwner('${escJs(owner)}')"><span><i class="fas ${ownerOpen ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-user" style="margin-right:6px"></i>${esc(owner)}</span></div>`;
             if (ownerOpen) shares.forEach(share => {
                 const open = expandedSharedSections.has(share.id);
-                html += `<div class="section-title" style="padding-left:2rem" onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i></span></div>`;
+                html += `<div class="section-title" style="padding-left:2rem" onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
                 if (open) html += sharedSidebarSubtree(share.section.subs, share.id, 3);
             });
         });
@@ -655,7 +594,7 @@ function renderSidebar() {
     if (sharedSidebarExpanded) {
         sharedSections.forEach(share => {
             const open = expandedSharedSections.has(share.id);
-            html += `<div class="section-title" style="padding-left:1rem" onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i></span></div>`;
+            html += `<div class="section-title" style="padding-left:1rem" onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
             if (open) html += sharedSidebarSubtree(share.section.subs, share.id, 2);
         });
     }

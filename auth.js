@@ -335,10 +335,8 @@ async function handleLogin() {
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
         hideLoginOverlay();
         updateUserDisplay();
-        if (isVercelConfigured) {
-            await pullFromVercel();
-        }
-        await loadSharedFolders();
+        // Cloud data is loaded only when the user presses Pull.
+        // Shared sections load when the user opens Shared Sections.
         console.log(`✅ Logged in as "${username}"`);
     } catch (error) {
         errorEl.textContent = error.message || 'Login failed';

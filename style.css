@@ -1036,3 +1036,14 @@ body {
 .share-user-permission{width:100%;padding:.58rem .7rem;border:1px solid #494831;border-radius:8px;background:#11110d;color:#eee;outline:none}.share-user-permission:focus{border-color:#f5e56b}.share-user-permission:disabled{opacity:.45}
 .share-access-help{margin:.8rem 1.6rem;color:#929177;font-size:.82rem}.share-access-help i{margin-right:.35rem;color:#c8ba55}.share-dialog-actions{display:flex;justify-content:flex-end;gap:.55rem;padding:1rem 1.6rem 1.4rem;border-top:1px solid #2d2c1d}.share-dialog-actions .auth-btn,.share-dialog-actions .auth-link{padding:.72rem 1rem}.manage-sharing-btn{display:inline-flex;align-items:center;gap:.4rem}.shared-from-label{font-size:.75rem;color:#89886c}
 @media(max-width:560px){.share-access-card{width:96vw}.share-dialog-heading,.share-dialog-actions{padding-left:1rem;padding-right:1rem}.share-list-label{display:none}.share-user-row{grid-template-columns:1fr;gap:.55rem}.share-user-permission{margin-left:48px;width:calc(100% - 48px)}}
+
+/* Empty canvases use one centered card in personal and shared views. */
+.canvas .empty-state-hero {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin: 2rem auto;
+    width: min(80%, 500px);
+    box-sizing: border-box;
+}

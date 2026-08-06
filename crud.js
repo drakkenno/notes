@@ -439,10 +439,9 @@ window.stopSharingSection = async function(id) {
 window.deleteSection = async function(id) {
     const sec = sections.find(s => s.id === id);
     if (!sec || !confirm('Delete section "' + capitalize(sec.name) + '" and all of its shared copies? This cannot be undone.')) return;
-    try {
-        for (const shareId of sec.sharedShareIds || []) await sharedApi('POST', { action: 'delete-section', shareId });
-        sections = sections.filter(s => s.id !== id);
-        if (selectedSectionId === id) { selectedSectionId = null; selectedSubsectionPath = []; }
-        await loadSharedSections(); render();
-    } catch (error) { showSaveIndicator('Section was not deleted: ' + error.message, true); }
+    // Personal sections created before the shared-source migration may retain
+    // stale shared IDs. They must not block deletion of the personal copy.
+    sections = sections.filter(s => s.id !== id);
+    if (selectedSectionId === id) { selectedSectionId = null; selectedSubsectionPath = []; }
+    render();
 };

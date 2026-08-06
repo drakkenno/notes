@@ -1,6 +1,8 @@
 ﻿// Recipient-based section sharing
-const SHARED_API_URL = 'https://notes-2s8q6ntxj-drakenotes1.vercel.app/api/shared';
+// Keep the shared endpoint on the same deployment as the Notes API.
+const SHARED_API_URL = VERCEL_API_URL.replace(/\/api\/notes$/, '/api/shared');
 let sharedSections = [];
+const pendingSharedSaveIds = new Set();
 let isSharedSectionsView = false;
 let selectedSharedSectionId = null;
 
@@ -16,10 +18,44 @@ async function sharedApi(method = 'GET', body) {
     return data;
 }
 
+function sharedSectionAliases(share) {
+    const owner = String(share?.owner || '');
+    return [...new Set([
+        share?.sourceKey && owner + ':key:' + share.sourceKey,
+        share?.connection?.sourceSectionId && owner + ':source:' + share.connection.sourceSectionId,
+        share?.sourceSectionId && owner + ':source:' + share.sourceSectionId,
+        share?.section?.id && owner + ':section:' + share.section.id
+    ].filter(Boolean))];
+}
+
+function collapseSharedSectionDuplicates(shares) {
+    const canonical = [];
+    const byAlias = new Map();
+    for (const share of shares || []) {
+        const aliases = sharedSectionAliases(share);
+        const current = aliases.map(alias => byAlias.get(alias)).find(Boolean);
+        if (!current) {
+            canonical.push(share);
+            aliases.forEach(alias => byAlias.set(alias, share));
+            continue;
+        }
+        const roles = { ...(current.recipientPermissions || {}) };
+        current.recipients = Array.isArray(current.recipients) ? current.recipients : [];
+        for (const recipient of share.recipients || []) {
+            if (!current.recipients.includes(recipient)) current.recipients.push(recipient);
+            if (share.recipientPermissions?.[recipient] === 'contributor') roles[recipient] = 'contributor';
+            else if (!roles[recipient]) roles[recipient] = 'reader';
+        }
+        current.recipientPermissions = roles;
+        aliases.forEach(alias => byAlias.set(alias, current));
+    }
+    return canonical;
+}
+
 async function loadSharedSections() {
     if (!currentUser) return;
     const data = await sharedApi();
-    sharedSections = data.sections || [];
+    sharedSections = collapseSharedSectionDuplicates(data.sections || []);
 }
 
 window.showSharedSections = async function() {
@@ -28,7 +64,7 @@ window.showSharedSections = async function() {
     selectedSectionId = null;
     selectedSubsectionPath = [];
     selectedSharedSubsectionPath = [];
-    try { await loadSharedSections(); } catch (error) { showSaveIndicator(error.message, true); }
+    // Shared data is refreshed only by the explicit Pull button.
     render();
 };
 
@@ -57,7 +93,8 @@ window.closeSharedSection = function() {
 };
 
 function getUserSharePermission(share, username = currentUser?.username) {
-    return share?.recipientPermissions?.[username] || share?.permission || 'reader';
+    if (share?.owner === username || username === 'drakeno') return 'owner';
+    return share?.recipientPermissions?.[username] === 'contributor' ? 'contributor' : 'reader';
 }
 
 function canEditSharedSection(share) {
@@ -65,18 +102,136 @@ function canEditSharedSection(share) {
         (getUserSharePermission(share) === 'contributor' && share.recipients.includes(currentUser.username));
 }
 
-async function saveSharedSection(share) {
-    try {
-        const data = await sharedApi('POST', { action: 'update-section', shareId: share.id, section: share.section });
-        const index = sharedSections.findIndex(item => item.id === share.id);
-        if (index !== -1) sharedSections[index] = data.share;
-        showSaveIndicator('Shared section saved');
-    } catch (error) {
-        showSaveIndicator(error.message, true);
-        await loadSharedSections();
-        render();
-    }
+function saveSharedSection(share) {
+    // Edits remain local until the user explicitly presses Sync now.
+    const index = sharedSections.findIndex(item => item.id === share.id);
+    if (index !== -1) sharedSections[index] = share;
+    pendingSharedSaveIds.add(share.id);
+    showSaveIndicator('Shared changes pending Push');
 }
+
+window.pushPendingSharedSectionsNow = async function() {
+    const pending = sharedSections.filter(share => pendingSharedSaveIds.has(share.id));
+    for (const share of pending) {
+        await pushSharedSection(share);
+        pendingSharedSaveIds.delete(share.id);
+    }
+};
+
+async function pushSharedSection(share) {
+    const data = await sharedApi('POST', { action: 'update-section', shareId: share.id, section: share.section });
+    const index = sharedSections.findIndex(item => item.id === share.id);
+    if (index !== -1) sharedSections[index] = data.share;
+    if (activeSharedEditorId === share.id && sections.length === 1) sections[0] = data.share.section;
+    showSaveIndicator('Shared section synchronized with personal section');
+}
+
+
+function isSharedOwner(share) {
+    return currentUser?.username === 'drakeno' || share?.owner === currentUser?.username;
+}
+
+window.addSharedSubsection = function(shareId, parentPath = '') {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share || !canEditSharedSection(share)) return;
+    const name = prompt('Subsection name:');
+    if (!name || !name.trim()) return;
+    const newSub = { name: name.trim().toLowerCase(), notes: [], items: [], subs: [] };
+    let siblings = share.section.subs || (share.section.subs = []);
+    for (const part of String(parentPath).split('/').filter(Boolean)) {
+        const parent = siblings.find(item => item.name === part);
+        if (!parent) return;
+        siblings = parent.subs || (parent.subs = []);
+    }
+    siblings.push(newSub);
+    saveSharedSection(share);
+    render();
+};
+
+window.deleteSharedSubsection = function(shareId, path) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share || !isSharedOwner(share) || !confirm('Delete this shared subsection?')) return;
+    const parts = String(path).split('/').filter(Boolean);
+    let siblings = share.section.subs || [];
+    for (let index = 0; index < parts.length - 1; index++) {
+        const parent = siblings.find(item => item.name === parts[index]);
+        if (!parent) return;
+        siblings = parent.subs || [];
+    }
+    const index = siblings.findIndex(item => item.name === parts.at(-1));
+    if (index < 0) return;
+    siblings.splice(index, 1);
+    saveSharedSection(share);
+    render();
+};
+
+window.addSharedSubNote = function(shareId, subPath) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
+    if (!share || !sub || !canEditSharedSection(share)) return;
+    (sub.notes || (sub.notes = [])).push({ title: 'New Note', content: '', width: 300, height: 160 });
+    saveSharedSection(share); render();
+};
+window.addSharedSubList = function(shareId, subPath) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
+    if (!share || !sub || !canEditSharedSection(share)) return;
+    (sub.items || (sub.items = [])).push({ title: 'New List', items: [], width: 320, height: 200 });
+    saveSharedSection(share); render();
+};
+
+window.deleteSharedNote = function(shareId, index) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share || !canEditSharedSection(share)) return;
+    share.section.notes.splice(index, 1); saveSharedSection(share); render();
+};
+window.deleteSharedList = function(shareId, index) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share || !canEditSharedSection(share)) return;
+    share.section.items.splice(index, 1); saveSharedSection(share); render();
+};
+window.deleteSharedSubNote = function(shareId, subPath, index) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
+    if (!share || !sub || !canEditSharedSection(share)) return;
+    sub.notes.splice(index, 1); saveSharedSection(share); render();
+};
+window.deleteSharedSubList = function(shareId, subPath, index) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
+    if (!share || !sub || !canEditSharedSection(share)) return;
+    sub.items.splice(index, 1); saveSharedSection(share); render();
+};
+
+function focusNewestSharedTitle(kind) {
+    setTimeout(() => {
+        const cards = document.querySelectorAll(kind === 'note' ? '.note-box .editable-title' : '.list-box .editable-title');
+        const field = cards[cards.length - 1];
+        if (field) { field.focus(); field.select(); }
+    }, 50);
+}
+
+window.addSharedNote = function(shareId) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share || !canEditSharedSection(share)) return;
+    const notes = share.section.notes || (share.section.notes = []);
+    const index = notes.length;
+    notes.push({ title: 'New Note', content: '', x: 10 + (index * 20) % 200, y: 10 + (index * 20) % 200, width: 300, height: 160 });
+    saveSharedSection(share);
+    render();
+    focusNewestSharedTitle('note');
+};
+
+window.addSharedList = function(shareId) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share || !canEditSharedSection(share)) return;
+    const lists = share.section.items || (share.section.items = []);
+    const index = lists.length;
+    lists.push({ title: 'New List', items: [], x: 340 + (index * 20) % 200, y: 10 + (index * 20) % 200, width: 320, height: 200 });
+    saveSharedSection(share);
+    render();
+    focusNewestSharedTitle('list');
+};
 
 window.updateSharedSectionTitle = function(shareId, value) {
     const share = sharedSections.find(item => item.id === Number(shareId));
@@ -133,7 +288,8 @@ function renderSharedSections() {
             const y = section.y !== undefined ? section.y : (index * 40) % 300 + 20;
             const width = section.width || 280 + (index % 3) * 40;
             const height = section.height || 180 + (index % 4) * 30;
-            const permission = getUserSharePermission(share) === 'contributor' ? 'Contributor' : 'Reader';
+            const userRole = getUserSharePermission(share);
+            const permission = userRole === 'owner' ? 'Owner' : userRole === 'contributor' ? 'Contributor' : 'Reader';
             html += `<article class="note-box shared-section-box" onclick="selectSharedSection(${share.id})" style="left:${x}px; top:${y}px; width:${width}px; height:${height}px; cursor:pointer;">
                 ${canDelete ? `<button class="box-delete-btn" onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Remove share"><i class="fas fa-times"></i></button>` : ''}
                 <div class="box-title"><i class="fas fa-folder-open"></i><span>${capitalize(section.name)}</span></div>
@@ -154,13 +310,17 @@ function renderSharedSubsectionTree(subs, shareId, depth = 1, parentPath = []) {
         const notes = sub.notes || [];
         const lists = sub.items || [];
         const summary = `${notes.length} notes Â· ${lists.length} lists${sub.subs?.length ? ` Â· ${sub.subs.length} subsections` : ''}`;
-        return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-folder-open"></i> <strong>${esc(sub.name)}</strong><span class="shared-subsection-summary">${summary}</span>${renderSharedSubsectionTree(sub.subs, shareId, depth + 1, path)}</li>`;
+        const share = sharedSections.find(item => item.id === Number(shareId));
+        const add = canEditSharedSection(share) ? `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSharedSubsection(${shareId}, '${pathStr}')" title="Add subsection"></i>` : '';
+        const remove = isSharedOwner(share) ? `<i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSharedSubsection(${shareId}, '${pathStr}')" title="Delete subsection"></i>` : '';
+        return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-folder-open"></i> <strong>${esc(sub.name)}</strong><span class="shared-subsection-summary">${summary}</span>${add}${remove}${renderSharedSubsectionTree(sub.subs, shareId, depth + 1, path)}</li>`;
     }).join('')}</ul>`;
 }
 function renderSharedSection(share) {
     const section = share.section;
     const editable = canEditSharedSection(share);
-    const permission = getUserSharePermission(share) === 'contributor' ? 'Contributor' : 'Reader';
+    const userRole = getUserSharePermission(share);
+    const permission = userRole === 'owner' ? 'Owner' : userRole === 'contributor' ? 'Contributor' : 'Reader';
     let html = `<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i>`;
     html += editable
         ? `<input class="editable-title" value="${esc(section.name)}" onchange="updateSharedSectionTitle(${share.id}, this.value)">`
@@ -174,10 +334,10 @@ function renderSharedSection(share) {
     } else {
         html += '<div class="box-grid--responsive">';
         notes.forEach((note, noteIndex) => {
-            html += `<article class="note-box"><div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" onchange="updateSharedNote(${share.id}, ${noteIndex}, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" onchange="updateSharedNote(${share.id}, ${noteIndex}, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></article>`;
+            html += `<article class="note-box">${editable ? `<button class="box-delete-btn" onclick="deleteSharedNote(${share.id}, ${noteIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" onchange="updateSharedNote(${share.id}, ${noteIndex}, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" onchange="updateSharedNote(${share.id}, ${noteIndex}, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></article>`;
         });
         lists.forEach((list, listIndex) => {
-            html += `<article class="list-box"><div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" onchange="updateSharedListTitle(${share.id}, ${listIndex}, this.value)">` : `<span>${esc(list.title || 'List')}</span>`}</div><div class="list-items">`;
+            html += `<article class="list-box">${editable ? `<button class="box-delete-btn" onclick="deleteSharedList(${share.id}, ${listIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" onchange="updateSharedListTitle(${share.id}, ${listIndex}, this.value)">` : `<span>${esc(list.title || 'List')}</span>`}</div><div class="list-items">`;
             (list.items || []).forEach((item, itemIndex) => {
                 const icon = item.done ? 'fa-check-circle' : 'fa-circle';
                 html += `<div class="sub-list-item"><i class="fas ${icon}" style="color:${item.done ? '#f5e56b' : '#7a7a5a'};${editable ? 'cursor:pointer' : ''}" ${editable ? `onclick="toggleSharedListItem(${share.id}, ${listIndex}, ${itemIndex})"` : ''}></i>${editable ? `<textarea class="editable-item" rows="1" onchange="updateSharedListItem(${share.id}, ${listIndex}, ${itemIndex}, this.value)">${esc(item.text || '')}</textarea>` : `<span>${esc(item.text || '')}</span>`}</div>`;
@@ -190,6 +350,7 @@ function renderSharedSection(share) {
     if ((section.subs || []).length) {
         html += `<section class="subsections-list"><div class="shared-folder-title"><i class="fas fa-sitemap"></i> Subsections</div>${renderSharedSubsectionTree(section.subs, share.id)}</section>`;
     }
+    if (editable) html += `<div style="margin-top:2rem; padding-top:1rem; border-top:1px solid #2a2a1a; display:flex; gap:0.8rem; flex-wrap:wrap;"><button class="action-btn" onclick="addSharedNote(${share.id})"><i class="fas fa-plus"></i> Add note</button><button class="action-btn" onclick="addSharedList(${share.id})"><i class="fas fa-plus"></i> Add list</button><button class="action-btn" onclick="addSharedSubsection(${share.id})"><i class="fas fa-plus"></i> Add subsection</button></div>`;
     mainContainer.innerHTML = html + '</div>';
     setTimeout(autoResizeTextareas, 10);
 }
@@ -246,19 +407,12 @@ function scheduleSharedSectionSync() {
     }, 700);
 }
 
-let sharedSectionsRefreshTimer = null;
-setInterval(async () => {
-    if (!isSharedSectionsView || !currentUser?.token) return;
+// Shared sections are refreshed only when the user opens Shared Sections.
+window.stopSharedSection = async function(shareId) {
+    if (!confirm('Stop sharing? The current shared section will be restored to the owner?s personal notes.')) return;
     try {
-        await loadSharedSections();
-        render();
-    } catch (error) {
-        console.error('Shared sections refresh failed', error);
-    }
-}, 30000);window.stopSharedSection = async function(shareId) {
-    if (!confirm('Stop sharing this section? The original personal section will remain.')) return;
-    try {
-        await sharedApi('POST', { action: 'stop-sharing', shareId });
+        const result = await sharedApi('POST', { action: 'stop-sharing', shareId });
+        if (share.owner === currentUser?.username && result.restoredSection && !sections.some(item => item.id === result.restoredSection.id)) sections.push(result.restoredSection);
         selectedSharedSectionId = null;
         await loadSharedSections(); render(); showSaveIndicator('Sharing stopped');
     } catch (error) { showSaveIndicator(error.message, true); }
@@ -277,21 +431,10 @@ renderSharedSections = function() {
     header.appendChild(button);
 };
 // Do not depend on the debounced render cycle for structural personal-section changes.
-window.syncSharedSectionNow = async function(section) {
-    if (!section?.sharedShareIds?.length) return;
-    for (const shareId of section.sharedShareIds) {
-        try { await sharedApi('POST', { action: 'source-update', shareId, section }); }
-        catch (error) { console.error('Could not synchronize shared section', error); showSaveIndicator(error.message, true); }
-    }
+window.syncSharedSectionNow = async function() {
+    // Structural changes are synchronized by the next explicit Push.
 };
-const deleteSubsectionWithImmediateSharedSync = window.deleteSubsection;
-window.deleteSubsection = function(sectionId, path) {
-    const section = sections.find(item => item.id === sectionId);
-    const before = JSON.stringify(section?.subs || []);
-    const result = deleteSubsectionWithImmediateSharedSync(sectionId, path);
-    if (section && before !== JSON.stringify(section.subs || [])) syncSharedSectionNow(section);
-    return result;
-};
+
 // Selected shared subsections render their own notes and lists while retaining the parent share connection.
 let selectedSharedSubsectionPath = [];
 function getSharedSubsection(share, path) {
@@ -305,6 +448,16 @@ window.openSharedSubsection = function(shareId, path) {
     isSharedSectionsView = true; selectedSectionId = null; selectedSubsectionPath = []; render();
 };
 window.closeSharedSubsection = function() { selectedSharedSubsectionPath = []; render(); };
+window.updateSharedSubsectionName = function(shareId, path, value) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(path).split('/').filter(Boolean));
+    const nextName = String(value || '').trim().toLowerCase();
+    if (!share || !sub || !canEditSharedSection(share) || !nextName) return;
+    const oldPath = String(path).split('/').filter(Boolean);
+    sub.name = nextName;
+    selectedSharedSubsectionPath = [...oldPath.slice(0, -1), nextName];
+    saveSharedSection(share); render();
+};
 window.updateSharedSubsectionValue = function(shareId, path, kind, first, second, field, value) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     const sub = getSharedSubsection(share, path);
@@ -323,26 +476,15 @@ renderSharedSection = function(share) {
     const sub = getSharedSubsection(share, selectedSharedSubsectionPath);
     if (!sub) { selectedSharedSubsectionPath = []; return renderSharedSectionWithSubsectionSupport(share); }
     const editable = canEditSharedSection(share), path = escJs(selectedSharedSubsectionPath.join('/'));
-    let html = '<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i><h1>' + esc(capitalize(sub.name)) + '</h1></div><button class="back-btn" onclick="closeSharedSubsection()"><i class="fas fa-arrow-left"></i> Back</button></div><div class="box-grid--responsive">';
-    (sub.notes || []).forEach((note, index) => {
-        const title = editable ? '<input class="editable-title" value="' + esc(note.title || 'Note') + '" onchange="updateSharedSubsectionValue(' + share.id + ', \'" + path + "\', \'note\', ' + index + ', 0, \'title\', this.value)">' : '<span>' + esc(note.title || 'Note') + '</span>';
-        const content = editable ? '<textarea class="editable-content" onchange="updateSharedSubsectionValue(' + share.id + ', \'" + path + "\', \'note\', ' + index + ', 0, \'content\', this.value)">' + esc(note.content || '') + '</textarea>' : '<div class="shared-readonly-content">' + esc(note.content || '') + '</div>';
-        html += '<article class="note-box"><div class="box-title"><i class="fas fa-pen-fancy"></i>' + title + '</div><div class="note-content">' + content + '</div></article>';
-    });
-    (sub.items || []).forEach((list, listIndex) => {
-        const title = editable ? '<input class="editable-title" value="' + esc(list.title || 'List') + '" onchange="updateSharedSubsectionValue(' + share.id + ', \'" + path + "\', \'list\', ' + listIndex + ', 0, \'title\', this.value)">' : '<span>' + esc(list.title || 'List') + '</span>';
-        let rows = ''; (list.items || []).forEach((item, itemIndex) => { const value = editable ? '<textarea class="editable-item" rows="1" onchange="updateSharedSubsectionValue(' + share.id + ', \'" + path + "\', \'item\', ' + listIndex + ', ' + itemIndex + ', \'text\', this.value)">' + esc(item.text || '') + '</textarea>' : '<span>' + esc(item.text || '') + '</span>'; rows += '<div class="sub-list-item">' + value + '</div>'; });
-        html += '<article class="list-box"><div class="box-title"><i class="fas fa-list-ul"></i>' + title + '</div><div class="list-items">' + (rows || '<div class="empty-message">No items</div>') + '</div></article>';
-    });
-    // Show nested subsections as clickable cards
-    if (sub.subs && sub.subs.length > 0) {
-        html += '<div class="subsections-list" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #2a2a1a;width:100%;">';
-        html += '<div class="shared-folder-title"><i class="fas fa-sitemap"></i> Subsections</div>';
-        html += renderSharedSubsectionCards(sub.subs, share.id, 1, selectedSharedSubsectionPath);
-        html += '</div>';
-    }
-    if (!(sub.notes || []).length && !(sub.items || []).length && !(sub.subs || []).length) html += '<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>This subsection is empty.</p></div>';
-    html += '</div></div>'; mainContainer.innerHTML = html; setTimeout(autoResizeTextareas, 10);
+    const hasContent = (sub.notes || []).length || (sub.items || []).length || (sub.subs || []).length;
+    let html = '<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i><h1>' + esc(capitalize(sub.name)) + '</h1></div><button class="back-btn" onclick="closeSharedSubsection()"><i class="fas fa-arrow-left"></i> Back</button></div>';
+    if (!hasContent) html += '<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>Subsection: ' + esc(capitalize(sub.name)) + '<br><span style="font-size:0.9rem;color:#7a7a5a">Add notes and lists below</span></p></div>';
+    html += '<div class="box-grid--responsive" id="sharedSubsectionGrid">';
+    (sub.notes || []).forEach(note => { html += '<article class="note-box"><div class="box-title"><i class="fas fa-pen-fancy"></i><span>' + esc(note.title || 'Note') + '</span></div><div class="note-content"><div class="shared-readonly-content">' + esc(note.content || '') + '</div></div></article>'; });
+    (sub.items || []).forEach(list => { const rows = (list.items || []).map(item => '<div class="sub-list-item"><span>' + esc(item.text || '') + '</span></div>').join('') || '<div class="empty-message">No items</div>'; html += '<article class="list-box"><div class="box-title"><i class="fas fa-list-ul"></i><span>' + esc(list.title || 'List') + '</span></div><div class="list-items">' + rows + '</div></article>'; });
+    html += '</div>';
+    if (sub.subs && sub.subs.length) html += '<section class="subsections-list"><div class="shared-folder-title"><i class="fas fa-sitemap"></i> Subsections</div>' + renderSharedSubsectionCards(sub.subs, share.id, 1, selectedSharedSubsectionPath) + '</section>';
+    mainContainer.innerHTML = html + '</div>'; setTimeout(autoResizeTextareas, 10);
 };
 // Shared subsections use the same card vocabulary as personal sections instead of an unformatted list.
 function renderSharedSubsectionCards(subs, shareId, depth = 1, parentPath = []) {
@@ -366,11 +508,11 @@ renderSharedSection = function(share) {
     const header = mainContainer.querySelector('.canvas-header .title-section');
     if (!header || header.querySelector('.shared-recipients')) return;
     const recipients = (share.recipients || []).join(', ') || 'No recipients';
-    const role = share.permission === 'contributor' ? 'Contributor' : 'Reader';
+    const role = (share.recipients || []).map(name => `${share.recipientPermissions?.[name] === 'contributor' ? 'Contributor' : 'Reader'}: ${name}`).join(', ') || 'No recipients';
     const detail = document.createElement('span');
     detail.className = 'shared-access-badge shared-recipients';
     detail.title = 'Recipients: ' + recipients;
-    detail.innerHTML = '<i class="fas fa-users"></i> ' + role + ': ' + esc(recipients);
+    detail.innerHTML = '<i class="fas fa-users"></i> ' + esc(role);
     header.appendChild(detail);
 };
 // Exact shared editor: reuse the personal renderer and CRUD model, then save through the share connection.
@@ -394,9 +536,12 @@ window.openSharedFromSidebar = function(shareId) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     if (!share) return;
     if (!savedPersonalEditorState) savedPersonalEditorState = { sections, nextId, selectedSectionId, selectedSubsectionPath };
-    activeSharedEditorId = share.id; sharedEditorLastSnapshot = JSON.stringify(share.section);
-    // Keep the original sections array intact to maintain sync connection
-    // Just select the shared section for viewing/editing
+    activeSharedEditorId = share.id;
+    // Use the shared copy as the renderer's working data. Its save path writes
+    // through the persistent connection to the owner's personal section.
+    sections = [share.section];
+    nextId = Math.max(nextId || 1, Number(share.section.id || 0) + 1);
+    sharedEditorLastSnapshot = JSON.stringify(share.section);
     selectedSectionId = share.section.id; selectedSubsectionPath = []; isSharedSectionsView = false; render();
 };
 window.selectSharedSection = function(shareId) {
@@ -448,23 +593,15 @@ window.deleteSubsection = function(sectionId, path) {
 // Only send a shared-source write when the linked source section actually changed.
 const sharedSourceSignatures = new Map();
 scheduleSharedSectionSync = function() {
-    if (isSharedSectionsView || !currentUser?.username) return;
-    clearTimeout(sharedSyncTimer);
-    sharedSyncTimer = setTimeout(async () => {
-        for (const section of sections) {
-            const signature = JSON.stringify(section);
-            for (const shareId of section.sharedShareIds || []) {
-                const key = String(shareId);
-                if (sharedSourceSignatures.get(key) === signature) continue;
-                try {
-                    await sharedApi('POST', { action: 'source-update', shareId, section });
-                    sharedSourceSignatures.set(key, signature);
-                } catch (error) { console.error('Could not synchronize shared section', error); }
-            }
-        }
-    }, 800);
+    // Cloud writes only occur after an explicit Push or Sync now action.
 };
-
+window.syncAllSharedSectionsNow = async function() {
+    for (const section of sections || []) {
+        for (const shareId of section.sharedShareIds || []) {
+            await sharedApi('POST', { action: 'source-update', shareId, section });
+        }
+    }
+};
 
 const renderSharedSectionsWithAccessManagement = renderSharedSections;
 renderSharedSections = function() {
@@ -474,6 +611,14 @@ renderSharedSections = function() {
     if (!share) return;
     const header = mainContainer.querySelector('.canvas-header');
     if (!header) return;
+    if (isOwner && !header.querySelector('.delete-shared-section-btn')) {
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'action-btn delete-shared-section-btn';
+        deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i> Delete';
+        deleteButton.title = 'Permanently delete this shared section';
+        deleteButton.onclick = () => deleteSharedSection(share.id);
+        header.appendChild(deleteButton);
+    }
     if (isOwner && !header.querySelector('.manage-sharing-btn')) {
         const button = document.createElement('button');
         button.className = 'action-btn manage-sharing-btn';
@@ -505,14 +650,40 @@ function bindShareAccessRows(overlay, selectable) {
 }
 window.shareSection = async function(sectionId) {
     const section=sections.find(item=>item.id===sectionId); if(!section)return;
+    // A persistent key makes repeat shares update this exact record.
+    if (!section.shareKey) section.shareKey = crypto.randomUUID();
     try {
         const data=await sharedApi('POST',{action:'list-share-users'}), users=data.users||[]; if(!users.length)return alert('There are no other registered users.');
         const overlay=document.createElement('div'); overlay.className='login-overlay visible';
         overlay.innerHTML=`<section class="auth-card share-access-card"><div class="share-dialog-heading"><span class="share-dialog-icon"><i class="fas fa-user-plus"></i></span><div><h2>Give access</h2><p>Share <strong>${esc(section.name)}</strong> with your team.</p></div></div><div class="share-list-label"><span>People</span><span>Access</span></div><div class="share-user-list">${users.map(name=>shareAccessRow(name,'none',true)).join('')}</div><p class="share-access-help"><i class="fas fa-info-circle"></i> Readers can view. Contributors can edit.</p><div class="share-dialog-actions"><button class="auth-link" id="shareCancel">Cancel</button><button class="auth-btn" id="shareConfirm"><i class="fas fa-share-alt"></i> Give access</button></div></section>`;
         document.body.appendChild(overlay); bindShareAccessRows(overlay,true); overlay.querySelector('#shareCancel').onclick=()=>overlay.remove();
-        overlay.querySelector('#shareConfirm').onclick=async()=>{ const rows=[...overlay.querySelectorAll('.share-user-row')].filter(row=>row.querySelector('.share-user-check').checked), recipients=rows.map(row=>row.dataset.user); if(!recipients.length)return alert('Select at least one recipient.'); const recipientPermissions=Object.fromEntries(rows.map(row=>[row.dataset.user,row.querySelector('.share-user-permission').value])); try{const result=await sharedApi('POST',{action:'share-section',recipients,recipientPermissions,sourceSectionId:section.id,section}); section.sharedShareIds=[...new Set([...(section.sharedShareIds||[]),result.share.id])]; overlay.remove(); render(); showSaveIndicator(`Access given to ${recipients.length} ${recipients.length===1?'person':'people'}`);}catch(error){alert(error.message||'Sharing failed');}};
+        overlay.querySelector('#shareConfirm').onclick=async()=>{ const rows=[...overlay.querySelectorAll('.share-user-row')].filter(row=>row.querySelector('.share-user-check').checked), recipients=rows.map(row=>row.dataset.user); if(!recipients.length)return alert('Select at least one recipient.'); const recipientPermissions=Object.fromEntries(rows.map(row=>[row.dataset.user,row.querySelector('.share-user-permission').value])); try{const result=await sharedApi('POST',{action:'share-section',recipients,recipientPermissions,sourceSectionId:section.id,sourceKey:section.shareKey,section}); section.sharedShareIds=[]; sections=sections.filter(item=>item.id!==section.id); selectedSectionId=null; selectedSubsectionPath=[]; if(!sharedSections.some(item=>item.id===result.share.id)) sharedSections.push(result.share); overlay.remove(); render(); showSaveIndicator(`Moved to Shared Sections and granted access to ${recipients.length} ${recipients.length===1?'person':'people'}`);}catch(error){alert(error.message||'Sharing failed');}};
     } catch(error){showSaveIndicator(error.message,true);}
 };
+window.syncSharedSectionToPersonal = async function(shareId) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share || !canEditSharedSection(share)) return;
+    try {
+        await pushSharedSection(share);
+    } catch (error) { showSaveIndicator(error.message, true); }
+};
+// Open shared subsections through the personal canvas renderer so every
+// note/list control (editing, deletion, locations, ratings, and nesting) matches.
+window.openSharedSubsection = function(shareId, path) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share) return;
+    if (!savedPersonalEditorState) savedPersonalEditorState = { sections, nextId, selectedSectionId, selectedSubsectionPath };
+    activeSharedEditorId = share.id;
+    sections = [share.section];
+    selectedSectionId = share.section.id;
+    selectedSubsectionPath = Array.isArray(path) ? path : String(path).split('/').filter(Boolean);
+    selectedSharedSectionId = share.id;
+    selectedSharedSubsectionPath = selectedSubsectionPath;
+    isSharedSectionsView = false;
+    sharedEditorLastSnapshot = JSON.stringify(share.section);
+    render();
+};
+
 window.manageSharedAccess = async function(shareId) {
     const share=sharedSections.find(item=>item.id===Number(shareId)), isOwner=currentUser?.username==='drakeno'||share?.owner===currentUser?.username; if(!share||!isOwner)return;
     try {
