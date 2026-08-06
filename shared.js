@@ -1,4 +1,4 @@
-// Recipient-based section sharing
+﻿// Recipient-based section sharing
 const SHARED_API_URL = 'https://notes-blsp0zwdt-drakenotes1.vercel.app/api/shared';
 let sharedSections = [];
 let isSharedSectionsView = false;
@@ -80,9 +80,13 @@ window.closeSharedSection = function() {
     render();
 };
 
+function getUserSharePermission(share, username = currentUser?.username) {
+    return share?.recipientPermissions?.[username] || share?.permission || 'reader';
+}
+
 function canEditSharedSection(share) {
     return currentUser.username === 'drakeno' || share.owner === currentUser.username ||
-        (share.permission === 'contributor' && share.recipients.includes(currentUser.username));
+        (getUserSharePermission(share) === 'contributor' && share.recipients.includes(currentUser.username));
 }
 
 async function saveSharedSection(share) {
@@ -153,7 +157,7 @@ function renderSharedSections() {
             const y = section.y !== undefined ? section.y : (index * 40) % 300 + 20;
             const width = section.width || 280 + (index % 3) * 40;
             const height = section.height || 180 + (index % 4) * 30;
-            const permission = share.permission === 'contributor' ? 'Contributor' : 'Reader';
+            const permission = getUserSharePermission(share) === 'contributor' ? 'Contributor' : 'Reader';
             html += `<article class="note-box shared-section-box" onclick="selectSharedSection(${share.id})" style="left:${x}px; top:${y}px; width:${width}px; height:${height}px; cursor:pointer;">
                 ${canDelete ? `<button class="box-delete-btn" onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Remove share"><i class="fas fa-times"></i></button>` : ''}
                 <div class="box-title"><i class="fas fa-folder-open"></i><span>${capitalize(section.name)}</span></div>
@@ -173,14 +177,14 @@ function renderSharedSubsectionTree(subs, shareId, depth = 1, parentPath = []) {
         const pathStr = escJs(path.join('/'));
         const notes = sub.notes || [];
         const lists = sub.items || [];
-        const summary = `${notes.length} notes · ${lists.length} lists${sub.subs?.length ? ` · ${sub.subs.length} subsections` : ''}`;
+        const summary = `${notes.length} notes Â· ${lists.length} lists${sub.subs?.length ? ` Â· ${sub.subs.length} subsections` : ''}`;
         return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-folder-open"></i> <strong>${esc(sub.name)}</strong><span class="shared-subsection-summary">${summary}</span>${renderSharedSubsectionTree(sub.subs, shareId, depth + 1, path)}</li>`;
     }).join('')}</ul>`;
 }
 function renderSharedSection(share) {
     const section = share.section;
     const editable = canEditSharedSection(share);
-    const permission = share.permission === 'contributor' ? 'Contributor' : 'Reader';
+    const permission = getUserSharePermission(share) === 'contributor' ? 'Contributor' : 'Reader';
     let html = `<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i>`;
     html += editable
         ? `<input class="editable-title" value="${esc(section.name)}" onchange="updateSharedSectionTitle(${share.id}, this.value)">`
@@ -539,4 +543,37 @@ renderSharedSections = function() {
         label.innerHTML = `<i class="fas fa-user"></i> Shared from ${esc(share.owner)}`;
         header.querySelector('.title-section')?.appendChild(label);
     }
+};
+
+// Polished per-user sharing dialogs. These late definitions replace the legacy multi-select dialogs above.
+function shareAccessRow(name, access, selectable) {
+    const active = access !== 'none';
+    const status = !active ? 'No access' : access === 'contributor' ? 'Can edit' : 'Can view';
+    return `<div class="share-user-row ${active ? 'selected' : ''}" data-user="${esc(name)}">
+        <div class="share-user-identity">${selectable ? `<input class="share-user-check" type="checkbox" ${active ? 'checked' : ''}>` : ''}<span class="share-user-avatar">${esc(name.charAt(0).toUpperCase())}</span><span><strong>${esc(name)}</strong><small>${status}</small></span></div>
+        <select class="share-user-permission" aria-label="Access for ${esc(name)}" ${selectable && !active ? 'disabled' : ''}>${selectable ? '' : `<option value="none" ${!active ? 'selected' : ''}>No access</option>`}<option value="reader" ${access === 'reader' ? 'selected' : ''}>Reader</option><option value="contributor" ${access === 'contributor' ? 'selected' : ''}>Contributor</option></select>
+    </div>`;
+}
+function bindShareAccessRows(overlay, selectable) {
+    overlay.querySelectorAll('.share-user-check').forEach(check => { check.onchange = () => { const row=check.closest('.share-user-row'), select=row.querySelector('.share-user-permission'); row.classList.toggle('selected',check.checked); select.disabled=!check.checked; row.querySelector('small').textContent=check.checked?(select.value==='contributor'?'Can edit':'Can view'):'No access'; }; });
+    overlay.querySelectorAll('.share-user-permission').forEach(select => { select.onchange=()=>{ const row=select.closest('.share-user-row'), active=selectable?row.querySelector('.share-user-check').checked:select.value!=='none'; row.classList.toggle('selected',active); row.querySelector('small').textContent=!active?'No access':select.value==='contributor'?'Can edit':'Can view'; }; });
+}
+window.shareSection = async function(sectionId) {
+    const section=sections.find(item=>item.id===sectionId); if(!section)return;
+    try {
+        const data=await sharedApi('POST',{action:'list-share-users'}), users=data.users||[]; if(!users.length)return alert('There are no other registered users.');
+        const overlay=document.createElement('div'); overlay.className='login-overlay visible';
+        overlay.innerHTML=`<section class="auth-card share-access-card"><div class="share-dialog-heading"><span class="share-dialog-icon"><i class="fas fa-user-plus"></i></span><div><h2>Give access</h2><p>Share <strong>${esc(section.name)}</strong> with your team.</p></div></div><div class="share-list-label"><span>People</span><span>Access</span></div><div class="share-user-list">${users.map(name=>shareAccessRow(name,'none',true)).join('')}</div><p class="share-access-help"><i class="fas fa-info-circle"></i> Readers can view. Contributors can edit.</p><div class="share-dialog-actions"><button class="auth-link" id="shareCancel">Cancel</button><button class="auth-btn" id="shareConfirm"><i class="fas fa-share-alt"></i> Give access</button></div></section>`;
+        document.body.appendChild(overlay); bindShareAccessRows(overlay,true); overlay.querySelector('#shareCancel').onclick=()=>overlay.remove();
+        overlay.querySelector('#shareConfirm').onclick=async()=>{ const rows=[...overlay.querySelectorAll('.share-user-row')].filter(row=>row.querySelector('.share-user-check').checked), recipients=rows.map(row=>row.dataset.user); if(!recipients.length)return alert('Select at least one recipient.'); const recipientPermissions=Object.fromEntries(rows.map(row=>[row.dataset.user,row.querySelector('.share-user-permission').value])); try{const result=await sharedApi('POST',{action:'share-section',recipients,recipientPermissions,sourceSectionId:section.id,section}); section.sharedShareIds=[...new Set([...(section.sharedShareIds||[]),result.share.id])]; overlay.remove(); render(); showSaveIndicator(`Access given to ${recipients.length} ${recipients.length===1?'person':'people'}`);}catch(error){alert(error.message||'Sharing failed');}};
+    } catch(error){showSaveIndicator(error.message,true);}
+};
+window.manageSharedAccess = async function(shareId) {
+    const share=sharedSections.find(item=>item.id===Number(shareId)), isOwner=currentUser?.username==='drakeno'||share?.owner===currentUser?.username; if(!share||!isOwner)return;
+    try {
+        const data=await sharedApi('POST',{action:'list-share-users'}), users=(data.users||[]).filter(name=>name!==share.owner), accessFor=name=>share.recipientPermissions?.[name]||(share.recipients.includes(name)?share.permission||'reader':'none');
+        const overlay=document.createElement('div'); overlay.className='login-overlay visible'; overlay.innerHTML=`<section class="auth-card share-access-card"><div class="share-dialog-heading"><span class="share-dialog-icon"><i class="fas fa-users-cog"></i></span><div><h2>Manage access</h2><p>Shared from <strong>${esc(share.owner)}</strong></p></div></div><div class="share-list-label"><span>People</span><span>Access</span></div><div class="share-user-list">${users.map(name=>shareAccessRow(name,accessFor(name),false)).join('')}</div><p class="share-access-help"><i class="fas fa-info-circle"></i> Everyone with access is listed here. Changes apply when saved.</p><div class="share-dialog-actions"><button class="auth-link" id="manageShareCancel">Cancel</button><button class="auth-btn" id="manageShareSave"><i class="fas fa-check"></i> Save changes</button></div></section>`;
+        document.body.appendChild(overlay); bindShareAccessRows(overlay,false); overlay.querySelector('#manageShareCancel').onclick=()=>overlay.remove();
+        overlay.querySelector('#manageShareSave').onclick=async()=>{const rows=[...overlay.querySelectorAll('.share-user-row')], active=rows.filter(row=>row.querySelector('.share-user-permission').value!=='none'), recipients=active.map(row=>row.dataset.user); if(!recipients.length)return alert('Keep at least one person, or use Stop sharing.'); const recipientPermissions=Object.fromEntries(active.map(row=>[row.dataset.user,row.querySelector('.share-user-permission').value])); try{const result=await sharedApi('POST',{action:'manage-share',shareId:share.id,recipients,recipientPermissions}), index=sharedSections.findIndex(item=>item.id===share.id); if(index!==-1)sharedSections[index]=result.share; overlay.remove(); render(); showSaveIndicator('Sharing access updated');}catch(error){alert(error.message||'Could not update access');}};
+    } catch(error){showSaveIndicator(error.message,true);}
 };

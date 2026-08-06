@@ -8,12 +8,7 @@ function render() {
     renderMain();
     scheduleSharedSectionSync();
     saveLocalData();
-    if (isVercelConfigured && !isSyncing) {
-        clearTimeout(saveTimeout);
-        saveTimeout = setTimeout(() => {
-            saveToVercel({ sections, nextId });
-        }, 1000);
-    }
+    // Auto-sync removed - use Push button to sync manually
 }
 
 // Helper to get subsection by path
@@ -719,12 +714,7 @@ function stopDrag() {
     if (dragData) {
         dragData.box.classList.remove('dragging');
         saveLocalData();
-        if (isVercelConfigured && !isSyncing) {
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => {
-                saveToVercel({ sections, nextId });
-            }, 500);
-        }
+        // Auto-sync removed - use Push button to sync manually
     }
     dragData = null;
     document.removeEventListener('mousemove', onDrag);
@@ -801,12 +791,7 @@ function stopResize() {
     if (resizeData) {
         resizeData.box.classList.remove('resizing');
         saveLocalData();
-        if (isVercelConfigured && !isSyncing) {
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => {
-                saveToVercel({ sections, nextId });
-            }, 500);
-        }
+        // Auto-sync removed - use Push button to sync manually
     }
     resizeData = null;
     document.removeEventListener('mousemove', onResize);

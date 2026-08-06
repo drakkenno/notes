@@ -28,7 +28,7 @@ const toggleBtn = document.getElementById('toggleSidebarBtn');
 const sidebar = document.getElementById('sidebar');
 const syncLabel = document.getElementById('syncLabel');
 const statusText = document.getElementById('statusText');
-const syncBtn = document.getElementById('syncBtn');
+let pullBtn, pushBtn;
 let sidebarVisible = true;
 
 // ============================================================

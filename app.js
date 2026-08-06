@@ -60,17 +60,211 @@ async function saveToVercel(data) {
     }
 }
 
-async function syncFromVercel() {
+// ============================================================
+//  PULL FROM CLOUD
+// ============================================================
+
+function mergeData(localData, cloudData, direction = 'pull') {
+    // Returns merged data and list of conflicts
+    if (!cloudData || !cloudData.sections) return { merged: localData, conflicts: [] };
+    
+    const conflicts = [];
+    
+    // Start with local data
+    const mergedSections = JSON.parse(JSON.stringify(localData.sections || []));
+    
+    // For each cloud section, merge it in
+    (cloudData.sections || []).forEach(cloudSec => {
+        const localSec = mergedSections.find(s => s.name === cloudSec.name);
+        
+        if (!localSec) {
+            // Section only exists in cloud - add it
+            mergedSections.push(JSON.parse(JSON.stringify(cloudSec)));
+            return;
+        }
+        
+        // Section exists in both - merge everything
+        // Merge subsections by name
+        const localSubs = localSec.subs || [];
+        const cloudSubs = cloudSec.subs || [];
+        cloudSubs.forEach(cloudSub => {
+            const localSub = localSubs.find(s => s.name === cloudSub.name);
+            if (!localSub) {
+                // Subsection only in cloud - add it
+                localSubs.push(JSON.parse(JSON.stringify(cloudSub)));
+            } else {
+                // Merge notes in subsection
+                const localNotes = localSub.notes || [];
+                const cloudNotes = cloudSub.notes || [];
+                cloudNotes.forEach(cloudNote => {
+                    const localNote = localNotes.find(n => n.title === cloudNote.title);
+                    if (!localNote) {
+                        localNotes.push(JSON.parse(JSON.stringify(cloudNote)));
+                    } else if (localNote.content !== cloudNote.content) {
+                        // Same name different content - track conflict and cloud version wins
+                        conflicts.push({
+                            type: 'note',
+                            section: localSec.name,
+                            subsection: localSub.name,
+                            title: cloudNote.title,
+                            direction: direction
+                        });
+                        Object.assign(localNote, JSON.parse(JSON.stringify(cloudNote)));
+                    }
+                });
+                // Merge lists in subsection
+                const localItems = localSub.items || [];
+                const cloudItems = cloudSub.items || [];
+                cloudItems.forEach(cloudItem => {
+                    const localItem = localItems.find(i => i.title === cloudItem.title);
+                    if (!localItem) {
+                        localItems.push(JSON.parse(JSON.stringify(cloudItem)));
+                    } else {
+                        // Merge list items
+                        const localListItems = localItem.items || [];
+                        const cloudListItems = cloudItem.items || [];
+                        cloudListItems.forEach(cloudEntry => {
+                            const exists = localListItems.some(
+                                li => li.text === cloudEntry.text || 
+                                (li.id !== undefined && cloudEntry.id !== undefined && li.id === cloudEntry.id)
+                            );
+                            if (!exists) {
+                                localListItems.push(JSON.parse(JSON.stringify(cloudEntry)));
+                            }
+                        });
+                        // Update location/position if cloud has it and local doesn't
+                        if (!localItem.location && cloudItem.location) {
+                            localItem.location = cloudItem.location;
+                        }
+                        if (cloudItem.x !== undefined) localItem.x = cloudItem.x;
+                        if (cloudItem.y !== undefined) localItem.y = cloudItem.y;
+                        if (cloudItem.width !== undefined) localItem.width = cloudItem.width;
+                        if (cloudItem.height !== undefined) localItem.height = cloudItem.height;
+                    }
+                });
+            }
+        });
+        
+        // Merge section notes
+        const localNotes = localSec.notes || [];
+        const cloudNotes = cloudSec.notes || [];
+        cloudNotes.forEach(cloudNote => {
+            const localNote = localNotes.find(n => n.title === cloudNote.title);
+            if (!localNote) {
+                localNotes.push(JSON.parse(JSON.stringify(cloudNote)));
+            } else if (localNote.content !== cloudNote.content) {
+                // Same name different content - track conflict and cloud version wins
+                conflicts.push({
+                    type: 'note',
+                    section: localSec.name,
+                    title: cloudNote.title,
+                    direction: direction
+                });
+                Object.assign(localNote, JSON.parse(JSON.stringify(cloudNote)));
+            }
+        });
+        
+        // Merge section lists
+        const localItems = localSec.items || [];
+        const cloudItems = cloudSec.items || [];
+        cloudItems.forEach(cloudItem => {
+            const localItem = localItems.find(i => i.title === cloudItem.title);
+            if (!localItem) {
+                localItems.push(JSON.parse(JSON.stringify(cloudItem)));
+            } else {
+                // Merge list items
+                const localListItems = localItem.items || [];
+                const cloudListItems = cloudItem.items || [];
+                cloudListItems.forEach(cloudEntry => {
+                    const exists = localListItems.some(
+                        li => li.text === cloudEntry.text || 
+                        (li.id !== undefined && cloudEntry.id !== undefined && li.id === cloudEntry.id)
+                    );
+                    if (!exists) {
+                        localListItems.push(JSON.parse(JSON.stringify(cloudEntry)));
+                    }
+                });
+                // Update location/position if cloud has it and local doesn't
+                if (!localItem.location && cloudItem.location) {
+                    localItem.location = cloudItem.location;
+                }
+                if (cloudItem.x !== undefined) localItem.x = cloudItem.x;
+                if (cloudItem.y !== undefined) localItem.y = cloudItem.y;
+                if (cloudItem.width !== undefined) localItem.width = cloudItem.width;
+                if (cloudItem.height !== undefined) localItem.height = cloudItem.height;
+            }
+        });
+        
+        // Update position data if cloud has it
+        if (cloudSec.x !== undefined) localSec.x = cloudSec.x;
+        if (cloudSec.y !== undefined) localSec.y = cloudSec.y;
+        if (cloudSec.width !== undefined) localSec.width = cloudSec.width;
+        if (cloudSec.height !== undefined) localSec.height = cloudSec.height;
+        
+        // Merge share IDs
+        if (cloudSec.sharedShareIds && cloudSec.sharedShareIds.length > 0) {
+            if (!localSec.sharedShareIds) localSec.sharedShareIds = [];
+            cloudSec.sharedShareIds.forEach(id => {
+                if (!localSec.sharedShareIds.includes(id)) {
+                    localSec.sharedShareIds.push(id);
+                }
+            });
+        }
+    });
+    
+    // Use the max nextId from both
+    const mergedNextId = Math.max(localData.nextId || 1, cloudData.nextId || 1);
+    
+    return {
+        merged: {
+            sections: mergedSections,
+            nextId: mergedNextId
+        },
+        conflicts: conflicts
+    };
+}
+
+async function pullFromVercel() {
     if (isSyncing) return;
     isSyncing = true;
     updateSyncStatus('syncing');
-    syncBtn.disabled = true;
-    syncBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+    pullBtn.disabled = true;
+    pullBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pulling...';
+    
     try {
         const data = await loadFromVercel();
+        
         if (data && data.sections) {
+            // MERGE cloud data with local data instead of replacing
+            const mergeResult = mergeData({ sections, nextId }, data, 'pull');
+            const merged = mergeResult.merged;
+            const conflicts = mergeResult.conflicts;
+            
+            // Show confirmation if there are conflicts
+            if (conflicts.length > 0) {
+                const conflictList = conflicts.slice(0, 10).map(c => {
+                    if (c.type === 'note') {
+                        const location = c.subsection ? `${c.section} / ${c.subsection}` : c.section;
+                        return `• "${c.title}" in ${location}`;
+                    }
+                    return `• ${c.title} in ${c.section}`;
+                }).join('\n');
+                
+                const moreMsg = conflicts.length > 10 ? `\n...and ${conflicts.length - 10} more` : '';
+                
+                const message = `⚠️ The following items have different content in the cloud and will overwrite your local data:\n\n${conflictList}${moreMsg}\n\nDo you want to continue?`;
+                
+                if (!confirm(message)) {
+                    showSaveIndicator('Merge cancelled', false);
+                    return;
+                }
+            }
+            
+            sections = merged.sections;
+            nextId = merged.nextId;
+            
             // Ensure all sections have position properties
-            data.sections = data.sections.map(sec => {
+            sections = sections.map(sec => {
                 if (!sec.width) sec.width = 300;
                 if (!sec.height) sec.height = 200;
                 if (!sec.x) sec.x = 10 + Math.random() * 200;
@@ -78,7 +272,6 @@ async function syncFromVercel() {
                 if (!sec.subs) sec.subs = [];
                 if (!sec.notes) sec.notes = [];
                 if (!sec.items) sec.items = [];
-                // Ensure all subsections have subs array for nested subsections
                 if (sec.subs) {
                     sec.subs.forEach(sub => {
                         if (!sub.subs) sub.subs = [];
@@ -88,14 +281,94 @@ async function syncFromVercel() {
                 }
                 return sec;
             });
-            sections = data.sections || [];
-            nextId = data.nextId || 1;
+            
             render();
-            showSaveIndicator('✅ Loaded from cloud!');
+            showSaveIndicator('✅ Pulled & merged with cloud!');
             updateStatusPanel(true);
         } else {
-            // No data in cloud, save current with position data
-            const saveData = {
+            showSaveIndicator('ℹ️ No data in cloud', false);
+        }
+    } catch (error) {
+        console.error('Pull failed:', error);
+        showSaveIndicator('❌ Pull failed: ' + error.message, true);
+    } finally {
+        isSyncing = false;
+        updateSyncStatus('synced');
+        pullBtn.disabled = false;
+        pullBtn.innerHTML = '<i class="fas fa-download"></i> Pull';
+    }
+}
+
+window.pullNow = async function() {
+    console.log('Pull button clicked!');
+    if (!isVercelConfigured) {
+        showSaveIndicator('⚠️ Vercel API not configured. Check the URL.', true);
+        return;
+    }
+    await pullFromVercel();
+};
+
+// ============================================================
+//  PUSH TO CLOUD
+// ============================================================
+
+async function pushToVercel() {
+    if (isSyncing) return;
+    isSyncing = true;
+    updateSyncStatus('syncing');
+    pushBtn.disabled = true;
+    pushBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Pushing...';
+    
+    try {
+        // Check if we have data to push
+        if (!sections || sections.length === 0) {
+            showSaveIndicator('ℹ️ No local data to push', false);
+            return;
+        }
+        
+        // Get existing cloud data and MERGE with local data
+        const existingData = await loadFromVercel();
+        let saveData;
+        
+        if (existingData && existingData.sections && existingData.sections.length > 0) {
+            // Merge local data INTO cloud data (cloud is the base, local changes are merged in)
+            const mergeResult = mergeData(existingData, { sections, nextId }, 'push');
+            const merged = mergeResult.merged;
+            const conflicts = mergeResult.conflicts;
+            
+            // Show confirmation if there are conflicts
+            if (conflicts.length > 0) {
+                const conflictList = conflicts.slice(0, 10).map(c => {
+                    if (c.type === 'note') {
+                        const location = c.subsection ? `${c.section} / ${c.subsection}` : c.section;
+                        return `• "${c.title}" in ${location}`;
+                    }
+                    return `• ${c.title} in ${c.section}`;
+                }).join('\n');
+                
+                const moreMsg = conflicts.length > 10 ? `\n...and ${conflicts.length - 10} more` : '';
+                
+                const message = `⚠️ The following items have different content in local and will overwrite cloud data:\n\n${conflictList}${moreMsg}\n\nDo you want to continue?`;
+                
+                if (!confirm(message)) {
+                    showSaveIndicator('Push cancelled', false);
+                    return;
+                }
+            }
+            
+            saveData = {
+                sections: merged.sections.map(sec => ({
+                    ...sec,
+                    width: sec.width || 300,
+                    height: sec.height || 200,
+                    x: sec.x || 10,
+                    y: sec.y || 10
+                })),
+                nextId: merged.nextId
+            };
+        } else {
+            // No cloud data - just push local
+            saveData = {
                 sections: sections.map(sec => ({
                     ...sec,
                     width: sec.width || 300,
@@ -105,27 +378,31 @@ async function syncFromVercel() {
                 })),
                 nextId: nextId
             };
-            await saveToVercel(saveData);
+        }
+        
+        const success = await saveToVercel(saveData);
+        if (success) {
+            showSaveIndicator('✅ Pushed & merged to cloud!');
             updateStatusPanel(true);
         }
     } catch (error) {
-        console.error('Sync failed:', error);
-        showSaveIndicator('❌ Sync failed', true);
+        console.error('Push failed:', error);
+        showSaveIndicator('❌ Push failed: ' + error.message, true);
     } finally {
         isSyncing = false;
         updateSyncStatus('synced');
-        syncBtn.disabled = false;
-        syncBtn.innerHTML = '<i class="fas fa-sync"></i> Sync';
+        pushBtn.disabled = false;
+        pushBtn.innerHTML = '<i class="fas fa-upload"></i> Push';
     }
 }
 
-window.syncNow = async function() {
-    console.log('Sync button clicked!');
+window.pushNow = async function() {
+    console.log('Push button clicked!');
     if (!isVercelConfigured) {
         showSaveIndicator('⚠️ Vercel API not configured. Check the URL.', true);
         return;
     }
-    await syncFromVercel();
+    await pushToVercel();
 };
 
 // ============================================================
@@ -143,6 +420,12 @@ function updateSyncStatus(status) {
     if (syncLabel) {
         syncLabel.innerHTML = statusMap[status] || statusMap.local;
     }
+}
+
+// Update button references for Pull and Push
+function initSyncButtons() {
+    pullBtn = document.getElementById('pullBtn');
+    pushBtn = document.getElementById('pushBtn');
 }
 
 function updateStatusPanel(connected) {

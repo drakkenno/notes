@@ -61,7 +61,8 @@
                     <span id="statusText">Cloud sync: <span class="disconnected">not configured</span></span>
                 </div>
                 <div class="user-actions" id="userActions" style="display:none"><span id="currentUserDisplay"></span><button class="user-action-btn" onclick="showChangePasswordLoggedIn()" title="Change password"><i class="fas fa-key"></i></button><button class="user-action-btn" id="deleteMyAccountBtn" onclick="showDeleteOwnAccount()" title="Delete my account"><i class="fas fa-trash-alt"></i></button><button class="user-action-btn" id="adminPanelBtn" onclick="showAdminPanel()" title="Admin panel" style="display:none"><i class="fas fa-shield-alt"></i></button><button class="user-action-btn" onclick="handleLogout()" title="Log out"><i class="fas fa-sign-out-alt"></i></button></div><div class="status-actions">
-                    <button onclick="syncNow()" id="syncBtn"><i class="fas fa-sync"></i> Sync</button>
+<button onclick="pullNow()" id="pullBtn"><i class="fas fa-download"></i> Pull</button>
+                    <button onclick="pushNow()" id="pushBtn"><i class="fas fa-upload"></i> Push</button>
                 </div>
             </div>
             <button class="sidebar-close-btn" id="sidebarCloseBtn" title="Close sidebar">
@@ -86,6 +87,7 @@
     <script>
     document.addEventListener('DOMContentLoaded', function() {
         initAuth();
+        initSyncButtons();
         const addBtn = document.getElementById('addSectionBtn');
         if (addBtn) {
             addBtn.addEventListener('click', function(e) {

@@ -336,7 +336,7 @@ async function handleLogin() {
         hideLoginOverlay();
         updateUserDisplay();
         if (isVercelConfigured) {
-            await syncFromVercel();
+            await pullFromVercel();
         }
         await loadSharedFolders();
         console.log(`✅ Logged in as "${username}"`);
