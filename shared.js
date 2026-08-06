@@ -1,5 +1,5 @@
 ﻿// Recipient-based section sharing
-const SHARED_API_URL = 'https://notes-blsp0zwdt-drakenotes1.vercel.app/api/shared';
+const SHARED_API_URL = 'https://notes-2s8q6ntxj-drakenotes1.vercel.app/api/shared';
 let sharedSections = [];
 let isSharedSectionsView = false;
 let selectedSharedSectionId = null;
@@ -32,30 +32,6 @@ window.showSharedSections = async function() {
     render();
 };
 
-window.shareSection = async function(sectionId) {
-    const section = sections.find(item => item.id === sectionId);
-    if (!section) return;
-    const input = prompt('Share with registered usernames (comma-separated):');
-    if (!input) return;
-    const recipients = [...new Set(input.split(',').map(name => name.trim().toLowerCase()).filter(Boolean))]
-        .filter(name => name !== currentUser.username.toLowerCase());
-    if (!recipients.length) return alert('Enter at least one other username.');
-
-    const access = prompt('Access type: enter "reader" or "contributor"', 'reader');
-    if (access === null) return;
-    const permission = access.trim().toLowerCase();
-    if (!['reader', 'contributor'].includes(permission)) {
-        return alert('Access type must be "reader" or "contributor".');
-    }
-
-    try {
-        await sharedApi('POST', { action: 'share-section', recipients, permission, sourceSectionId: section.id, section });
-        showSaveIndicator(`Section shared as ${permission}`);
-        await loadSharedSections();
-    } catch (error) {
-        showSaveIndicator(error.message, true);
-    }
-};
 
 window.deleteSharedSection = async function(shareId) {
     if (!confirm('Remove this shared section?')) return;
@@ -418,7 +394,9 @@ window.openSharedFromSidebar = function(shareId) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     if (!share) return;
     if (!savedPersonalEditorState) savedPersonalEditorState = { sections, nextId, selectedSectionId, selectedSubsectionPath };
-    activeSharedEditorId = share.id; sharedEditorLastSnapshot = JSON.stringify(share.section); sections = [share.section]; nextId = Math.max(1, Number(share.section.id || 0) + 1);
+    activeSharedEditorId = share.id; sharedEditorLastSnapshot = JSON.stringify(share.section);
+    // Keep the original sections array intact to maintain sync connection
+    // Just select the shared section for viewing/editing
     selectedSectionId = share.section.id; selectedSubsectionPath = []; isSharedSectionsView = false; render();
 };
 window.selectSharedSection = function(shareId) {
@@ -487,39 +465,6 @@ scheduleSharedSectionSync = function() {
     }, 800);
 };
 
-// Owners manage recipients and access level directly from the shared section.
-window.manageSharedAccess = async function(shareId) {
-    const share = sharedSections.find(item => item.id === Number(shareId));
-    const isOwner = currentUser?.username === 'drakeno' || share?.owner === currentUser?.username;
-    if (!share || !isOwner) return;
-    try {
-        const data = await sharedApi('POST', { action: 'list-share-users' });
-        const users = (data.users || []).filter(name => name !== share.owner);
-        const overlay = document.createElement('div');
-        overlay.className = 'login-overlay visible';
-        overlay.innerHTML = `<section class="auth-card share-access-card"><h2>Manage access</h2>
-            <p class="share-owner-label"><i class="fas fa-user"></i> Shared from <strong>${esc(share.owner)}</strong></p>
-            <label>People with access</label>
-            <select id="manageShareRecipients" multiple size="${Math.min(Math.max(users.length, 3), 8)}">${users.map(name => `<option value="${esc(name)}" ${share.recipients.includes(name) ? 'selected' : ''}>${esc(name)}</option>`).join('')}</select>
-            <label>Access for selected people</label>
-            <select id="manageSharePermission"><option value="reader" ${share.permission === 'reader' ? 'selected' : ''}>Reader</option><option value="contributor" ${share.permission === 'contributor' ? 'selected' : ''}>Contributor</option></select>
-            <p class="share-access-help">Readers can view this section. Contributors can edit it.</p>
-            <div><button class="auth-btn" id="manageShareSave">Save access</button><button class="auth-link" id="manageShareCancel">Cancel</button></div></section>`;
-        document.body.appendChild(overlay);
-        overlay.querySelector('#manageShareCancel').onclick = () => overlay.remove();
-        overlay.querySelector('#manageShareSave').onclick = async () => {
-            const recipients = [...overlay.querySelector('#manageShareRecipients').selectedOptions].map(option => option.value);
-            if (!recipients.length) return alert('Select at least one recipient. Use Stop sharing to remove the share entirely.');
-            const permission = overlay.querySelector('#manageSharePermission').value;
-            try {
-                const result = await sharedApi('POST', { action: 'manage-share', shareId: share.id, recipients, permission });
-                const index = sharedSections.findIndex(item => item.id === share.id);
-                if (index !== -1) sharedSections[index] = result.share;
-                overlay.remove(); render(); showSaveIndicator('Sharing access updated');
-            } catch (error) { alert(error.message || 'Could not update access'); }
-        };
-    } catch (error) { showSaveIndicator(error.message, true); }
-};
 
 const renderSharedSectionsWithAccessManagement = renderSharedSections;
 renderSharedSections = function() {
