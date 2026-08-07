@@ -6,7 +6,7 @@ async function loadFromVercel() {
     try {
         if (!currentUser?.username) throw new Error('Login required');
         const url = `${VERCEL_API_URL}?username=${encodeURIComponent(currentUser.username)}`;
-        const response = await fetch(url);
+        const response = await fetch(url, { headers: { Authorization: `Bearer ${currentUser.token}` } });
         if (!response.ok) {
             if (response.status === 404) return null;
             throw new Error(`HTTP ${response.status}`);
@@ -43,7 +43,7 @@ async function saveToVercel(data) {
         
         const response = await fetch(VERCEL_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser.token}` },
             body: JSON.stringify(saveData)
         });
         if (!response.ok) {
