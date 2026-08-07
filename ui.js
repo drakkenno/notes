@@ -53,7 +53,7 @@ function renderRatingStars(rating, onclickStr) {
         const halfClick = onclickStr.replace('RATING_PLACEHOLDER', currentRating === halfVal ? 0 : halfVal);
         const fullClick = onclickStr.replace('RATING_PLACEHOLDER', currentRating === fullVal ? 0 : fullVal);
         
-        starsHtml += `<span class="star-box"><i class="${iconClass}"></i><span class="star-half left" onclick="event.stopPropagation(); ${halfClick}" title="${halfVal} star${halfVal > 1 ? 's' : ''}"></span><span class="star-half right" onclick="event.stopPropagation(); ${fullClick}" title="${fullVal} star${fullVal > 1 ? 's' : ''}"></span></span>`;
+        starsHtml += `<span class="star-box"><i class="${iconClass}"></i><span class="star-half left" data-onclick="event.stopPropagation(); ${halfClick}" title="${halfVal} star${halfVal > 1 ? 's' : ''}"></span><span class="star-half right" data-onclick="event.stopPropagation(); ${fullClick}" title="${fullVal} star${fullVal > 1 ? 's' : ''}"></span></span>`;
     }
     starsHtml += `</span>`;
     return starsHtml;
@@ -94,9 +94,9 @@ function renderLocationBadge(location, isCompact = false) {
     const mapUrl = getGoogleMapsUrl(loc);
     const displayText = getDisplayLocation(loc);
     if (isCompact) {
-        return `<a class="location-badge compact" href="${esc(mapUrl)}" target="_blank" title="Google Maps: ${esc(loc)}" onclick="event.stopPropagation(); window.open('${esc(mapUrl)}', '_blank'); return false;"><i class="fas fa-map-marker-alt"></i></a>`;
+        return `<a class="location-badge compact" href="${esc(mapUrl)}" target="_blank" title="Google Maps: ${esc(loc)}" data-onclick="event.stopPropagation(); window.open('${esc(mapUrl)}', '_blank'); return false;"><i class="fas fa-map-marker-alt"></i></a>`;
     }
-    return `<a class="location-badge" href="${esc(mapUrl)}" target="_blank" title="Open in Google Maps: ${esc(loc)}" onclick="event.stopPropagation(); window.open('${esc(mapUrl)}', '_blank'); return false;"><i class="fas fa-map-marker-alt"></i> <span>${esc(displayText)}</span></a>`;
+    return `<a class="location-badge" href="${esc(mapUrl)}" target="_blank" title="Open in Google Maps: ${esc(loc)}" data-onclick="event.stopPropagation(); window.open('${esc(mapUrl)}', '_blank'); return false;"><i class="fas fa-map-marker-alt"></i> <span>${esc(displayText)}</span></a>`;
 }
 
 function renderMain() {
@@ -120,17 +120,17 @@ function renderMain() {
             html += `<div class="title-section">
                         <i class="fas fa-folder-open" style="color:#f5e56b; font-size:1.5rem;"></i>
                         <input class="editable-title" value="${esc(displayName)}" 
-                               onchange="updateSectionTitle(${sec.id}, this.value)"
+                               data-onchange="updateSectionTitle(${sec.id}, this.value)"
                                onfocus="this.select()"
                                style="font-size:1.8rem; font-weight:600; background:transparent; border:none; color:#f5e56b; outline:none; border-bottom:2px solid transparent; min-width:100px;">
-                        <button class="edit-title-btn" onclick="document.querySelector('.canvas-header .editable-title').focus()" style="background:transparent; border:none; color:#7a7a5a; cursor:pointer; font-size:0.8rem;">
+                        <button class="edit-title-btn" data-onclick="document.querySelector('.canvas-header .editable-title').focus()" style="background:transparent; border:none; color:#7a7a5a; cursor:pointer; font-size:0.8rem;">
                             <i class="fas fa-edit"></i>
                         </button>
                         ${selectedSubsectionPath.length > 0 ? `<span style="color: #7a7a5a; font-size: 0.9rem; margin-left: 0.5rem;">(subsection)</span>` : ''}
-                        ${selectedSubsectionPath.length > 0 ? `<button class="delete-subsection-btn" onclick="deleteCurrentSubsection()" style="background:transparent; border:none; color:#ff6b6b; cursor:pointer; font-size:0.9rem; margin-left: 0.5rem;" title="Delete subsection"><i class="fas fa-trash-alt"></i></button>` : ''}
+                        ${selectedSubsectionPath.length > 0 ? `<button class="delete-subsection-btn" data-onclick="deleteCurrentSubsection()" style="background:transparent; border:none; color:#ff6b6b; cursor:pointer; font-size:0.9rem; margin-left: 0.5rem;" title="Delete subsection"><i class="fas fa-trash-alt"></i></button>` : ''}
                     </div>
                     <div style="display: flex; gap: 0.8rem; align-items: center;">
-                        <button class="back-btn" onclick="clearSelection()"><i class="fas fa-arrow-left"></i> Back</button>
+                        <button class="back-btn" data-onclick="clearSelection()"><i class="fas fa-arrow-left"></i> Back</button>
                         <span class="badge" id="syncStatus"><i class="fas fa-database"></i> <span id="syncLabel">local</span></span>
                     </div>`;
         }
@@ -164,9 +164,9 @@ function renderMain() {
                     <div class="note-box" id="box-${sec.id}" 
                          style="cursor: default; position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;"
                          data-section-id="${sec.id}">
-                        <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"><i class="fas fa-times"></i></button>
+                        <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"><i class="fas fa-times"></i></button>
                         <div class="box-title">
-                            <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
+                            <span class="drag-handle" data-onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                             <i class="fas fa-folder-open"></i>
                             <span>${capitalize(sec.name)}</span>
                             <span class="box-actions">
@@ -176,7 +176,7 @@ function renderMain() {
                             ${sec.notes ? sec.notes.length : 0} notes · ${sec.items ? sec.items.length : 0} lists
                             ${sec.subs && sec.subs.length > 0 ? ` · ${sec.subs.length} subsections` : ''}
                         </div>
-                        <div class="resize-handle" onclick="event.stopPropagation();">
+                        <div class="resize-handle" data-onclick="event.stopPropagation();">
                             <i class="fas fa-grip-lines"></i>
                         </div>
                     </div>
@@ -233,21 +233,21 @@ function renderMain() {
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
                              data-type="subNote" data-sub-path="${esc(subPathStr)}" data-index="${ni}">
-                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubNote('${subPathStr}', ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
+                            <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteSubNote('${subPathStr}', ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
                             <div class="box-title">
-                                <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
+                                <span class="drag-handle" data-onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
                                 <input class="editable-title" value="${esc(note.title || 'Note')}" 
-                                       onchange="updateSubNoteTitle('${subPathStr}', ${ni}, this.value)"
+                                       data-onchange="updateSubNoteTitle('${subPathStr}', ${ni}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
                             </div>
                             <div class="note-content">
                                 <textarea class="editable-content" 
-                                          onchange="updateSubNoteContent('${subPathStr}', ${ni}, this.value)"
+                                          data-onchange="updateSubNoteContent('${subPathStr}', ${ni}, this.value)"
                                           style="background:transparent; border:none; color:#d4c45a; font-size:0.95rem; line-height:1.6; outline:none; width:100%; min-height:30px; max-height:200px; font-family:inherit; resize:vertical; padding:0.2rem; border-radius:4px;">${esc(note.content || '')}</textarea>
                             </div>
-                            <div class="resize-handle" onclick="event.stopPropagation();">
+                            <div class="resize-handle" data-onclick="event.stopPropagation();">
                                 <i class="fas fa-grip-lines"></i>
                             </div>
                         </div>
@@ -268,19 +268,19 @@ function renderMain() {
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
                              data-type="subList" data-sub-path="${esc(subPathStr)}" data-index="${liIdx}">
-                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteSubList('${subPathStr}', ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
+                            <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteSubList('${subPathStr}', ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
                             <div class="box-title">
-                                <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
+                                <span class="drag-handle" data-onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
                                 <input class="editable-title" value="${esc(list.title || 'List')}" 
-                                       onchange="updateSubListTitle('${subPathStr}', ${liIdx}, this.value)"
+                                       data-onchange="updateSubListTitle('${subPathStr}', ${liIdx}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
                                 ${listLocBadge}
                                 ${ratingBadge}
                                 <span class="box-actions">
-                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubListLocationInSub('${subPathStr}', ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
-                                    <i class="fas fa-plus" onclick="addSubItemToSub('${subPathStr}', ${liIdx})" title="Add item"></i>
+                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSubListLocationInSub('${subPathStr}', ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
+                                    <i class="fas fa-plus" data-onclick="addSubItemToSub('${subPathStr}', ${liIdx})" title="Add item"></i>
                                 </span>
                             </div>
                             <div class="list-items" style="max-height:calc(100% - 60px); overflow-y:auto;">
@@ -294,16 +294,16 @@ function renderMain() {
                             const itemLocBadge = renderLocationBadge(item.location, true);
                             html += `
                                 <div class="sub-list-item">
-                                    <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx})" title="Toggle done"></i>
+                                    <i class="fas ${icon}" style="color:${color};" data-onclick="toggleSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx})" title="Toggle done"></i>
                                     <textarea class="editable-item" rows="1"
-                                              onchange="updateSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx}, this.value)"
+                                              data-onchange="updateSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx}, this.value)"
                                               oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
                                               onfocus="this.select()">${esc(item.text)}</textarea>
                                     ${itemLocBadge}
                                     ${stars}
                                     <span class="item-tag">${item.done ? 'done' : 'pending'}</span>
-                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setSubItemLocationInSub('${subPathStr}', ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
-                                    <i class="fas fa-times item-delete" onclick="deleteSubItemFromSub('${subPathStr}', ${liIdx}, ${subIdx})" title="Delete item"></i>
+                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSubItemLocationInSub('${subPathStr}', ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
+                                    <i class="fas fa-times item-delete" data-onclick="deleteSubItemFromSub('${subPathStr}', ${liIdx}, ${subIdx})" title="Delete item"></i>
                                 </div>
                             `;
                         });
@@ -313,8 +313,8 @@ function renderMain() {
                     
                     html += `
                             </div>
-                            <button class="add-item-btn" onclick="addSubItemToSub('${subPathStr}', ${liIdx})"><i class="fas fa-plus"></i> Add item</button>
-                            <div class="resize-handle" onclick="event.stopPropagation();">
+                            <button class="add-item-btn" data-onclick="addSubItemToSub('${subPathStr}', ${liIdx})"><i class="fas fa-plus"></i> Add item</button>
+                            <div class="resize-handle" data-onclick="event.stopPropagation();">
                                 <i class="fas fa-grip-lines"></i>
                             </div>
                         </div>
@@ -326,9 +326,9 @@ function renderMain() {
             const subPathStr = selectedSubsectionPath.join('/');
             html += `
                 <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #2a2a1a; display: flex; gap: 0.8rem; flex-wrap: wrap;">
-                    <button class="action-btn" onclick="addSubNote('${subPathStr}')"><i class="fas fa-plus"></i> Add note</button>
-                    <button class="action-btn" onclick="addSubList('${subPathStr}')"><i class="fas fa-plus"></i> Add list</button>
-                    <button class="action-btn" onclick="addSubsection(${sec.id}, '${subPathStr}')"><i class="fas fa-plus"></i> Add nested subsection</button>
+                    <button class="action-btn" data-onclick="addSubNote('${subPathStr}')"><i class="fas fa-plus"></i> Add note</button>
+                    <button class="action-btn" data-onclick="addSubList('${subPathStr}')"><i class="fas fa-plus"></i> Add list</button>
+                    <button class="action-btn" data-onclick="addSubsection(${sec.id}, '${subPathStr}')"><i class="fas fa-plus"></i> Add nested subsection</button>
                 </div>
             `;
             
@@ -350,21 +350,21 @@ function renderMain() {
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
                              data-type="note" data-section-id="${sec.id}" data-index="${ni}">
-                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteNote(${sec.id}, ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
+                            <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteNote(${sec.id}, ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
                             <div class="box-title">
-                                <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
+                                <span class="drag-handle" data-onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-pen-fancy"></i>
                                 <input class="editable-title" value="${esc(note.title || 'Note')}" 
-                                       onchange="updateNoteTitle(${sec.id}, ${ni}, this.value)"
+                                       data-onchange="updateNoteTitle(${sec.id}, ${ni}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
                             </div>
                             <div class="note-content">
                                 <textarea class="editable-content" 
-                                          onchange="updateNoteContent(${sec.id}, ${ni}, this.value)"
+                                          data-onchange="updateNoteContent(${sec.id}, ${ni}, this.value)"
                                           style="background:transparent; border:none; color:#d4c45a; font-size:0.95rem; line-height:1.6; outline:none; width:100%; min-height:30px; max-height:200px; font-family:inherit; resize:vertical; padding:0.2rem; border-radius:4px;">${esc(note.content || '')}</textarea>
                             </div>
-                            <div class="resize-handle" onclick="event.stopPropagation();">
+                            <div class="resize-handle" data-onclick="event.stopPropagation();">
                                 <i class="fas fa-grip-lines"></i>
                             </div>
                         </div>
@@ -384,19 +384,19 @@ function renderMain() {
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
                              data-type="list" data-section-id="${sec.id}" data-index="${liIdx}">
-                            <button class="box-delete-btn" onclick="event.stopPropagation(); deleteList(${sec.id}, ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
+                            <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteList(${sec.id}, ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
                             <div class="box-title">
-                                <span class="drag-handle" onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
+                                <span class="drag-handle" data-onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
                                 <i class="fas fa-list-ul"></i>
                                 <input class="editable-title" value="${esc(list.title || 'List')}" 
-                                       onchange="updateListTitle(${sec.id}, ${liIdx}, this.value)"
+                                       data-onchange="updateListTitle(${sec.id}, ${liIdx}, this.value)"
                                        onfocus="this.select()"
                                        style="background:transparent; border:none; color:#f5e56b; font-weight:600; font-size:0.9rem; outline:none; border-bottom:2px solid transparent; flex:1;">
                                 ${listLocBadge}
                                 ${ratingBadge}
                                 <span class="box-actions">
-                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setListLocation(${sec.id}, ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
-                                    <i class="fas fa-plus" onclick="addSubItem(${sec.id}, ${liIdx})" title="Add item"></i>
+                                    <i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setListLocation(${sec.id}, ${liIdx})" title="${list.location ? 'Location: ' + esc(list.location) + ' (Click to edit)' : 'Add Google Maps location to list'}"></i>
+                                    <i class="fas fa-plus" data-onclick="addSubItem(${sec.id}, ${liIdx})" title="Add item"></i>
                                 </span>
                             </div>
                             <div class="list-items" style="max-height:calc(100% - 60px); overflow-y:auto;">
@@ -410,16 +410,16 @@ function renderMain() {
                             const itemLocBadge = renderLocationBadge(item.location, true);
                             html += `
                                 <div class="sub-list-item">
-                                    <i class="fas ${icon}" style="color:${color};" onclick="toggleSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Toggle done"></i>
+                                    <i class="fas ${icon}" style="color:${color};" data-onclick="toggleSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Toggle done"></i>
                                     <textarea class="editable-item" rows="1"
-                                              onchange="updateSubItem(${sec.id}, ${liIdx}, ${subIdx}, this.value)"
+                                              data-onchange="updateSubItem(${sec.id}, ${liIdx}, ${subIdx}, this.value)"
                                               oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
                                               onfocus="this.select()">${esc(item.text)}</textarea>
                                     ${itemLocBadge}
                                     ${stars}
                                     <span class="item-tag">${item.done ? 'done' : 'pending'}</span>
-                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" onclick="event.stopPropagation(); setItemLocation(${sec.id}, ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
-                                    <i class="fas fa-times item-delete" onclick="deleteSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Delete item"></i>
+                                    <i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setItemLocation(${sec.id}, ${liIdx}, ${subIdx})" title="${item.location ? 'Location: ' + esc(item.location) + ' (Click to edit)' : 'Add Google Maps location'}"></i>
+                                    <i class="fas fa-times item-delete" data-onclick="deleteSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Delete item"></i>
                                 </div>
                             `;
                         });
@@ -429,8 +429,8 @@ function renderMain() {
                     
                     html += `
                             </div>
-                            <button class="add-item-btn" onclick="addSubItem(${sec.id}, ${liIdx})"><i class="fas fa-plus"></i> Add item</button>
-                            <div class="resize-handle" onclick="event.stopPropagation();">
+                            <button class="add-item-btn" data-onclick="addSubItem(${sec.id}, ${liIdx})"><i class="fas fa-plus"></i> Add item</button>
+                            <div class="resize-handle" data-onclick="event.stopPropagation();">
                                 <i class="fas fa-grip-lines"></i>
                             </div>
                         </div>
@@ -446,9 +446,9 @@ function renderMain() {
                 sec.subs.forEach(sub => {
                     const escapedName = escJs(sub.name);
                     html += `
-                        <span class="subsection-item" onclick="selectSubsection(${sec.id}, '${escapedName}')">
+                        <span class="subsection-item" data-onclick="selectSubsection(${sec.id}, '${escapedName}')">
                             ${capitalize(sub.name)}
-                            <span class="sub-delete" onclick="event.stopPropagation(); deleteSubsection(${sec.id}, '${escapedName}')">
+                            <span class="sub-delete" data-onclick="event.stopPropagation(); deleteSubsection(${sec.id}, '${escapedName}')">
                                 <i class="fas fa-times"></i>
                             </span>
                         </span>
@@ -459,9 +459,9 @@ function renderMain() {
             
             html += `
                 <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #2a2a1a; display: flex; gap: 0.8rem; flex-wrap: wrap;">
-                    <button class="action-btn" onclick="addNoteToSection(${sec.id})"><i class="fas fa-plus"></i> Add note</button>
-                    <button class="action-btn" onclick="addListToSection(${sec.id})"><i class="fas fa-plus"></i> Add list</button>
-                    <button class="action-btn" onclick="addSubsection(${sec.id})"><i class="fas fa-plus"></i> Add subsection</button>
+                    <button class="action-btn" data-onclick="addNoteToSection(${sec.id})"><i class="fas fa-plus"></i> Add note</button>
+                    <button class="action-btn" data-onclick="addListToSection(${sec.id})"><i class="fas fa-plus"></i> Add list</button>
+                    <button class="action-btn" data-onclick="addSubsection(${sec.id})"><i class="fas fa-plus"></i> Add subsection</button>
                 </div>
             `;
             

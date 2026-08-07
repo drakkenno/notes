@@ -459,11 +459,11 @@ function renderSubsectionTree(subs, sectionId, parentPath, depth = 0) {
                         selectedSubsectionPath.every((val, idx) => val === currentPath[idx]);
         
         const pathStr = escJs(currentPath.join('/'));
-        html += `<li class="${isActive ? 'active' : ''}" style="padding-left:${depth * 1.2}rem; cursor:pointer;" onclick="selectSubsection(${sectionId}, '${pathStr}')">`;
+        html += `<li class="${isActive ? 'active' : ''}" style="padding-left:${depth * 1.2}rem; cursor:pointer;" data-onclick="selectSubsection(${sectionId}, '${pathStr}')">`;
         html += `<i class="fas fa-circle"></i> ${capitalize(sub.name)}`;
         html += `<span class="section-actions" style="margin-left:auto;">`;
-        html += `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sectionId}, '${pathStr}')" title="Add nested subsection"></i>`;
-        html += `<i class="fas fa-times delete-sub" onclick="event.stopPropagation(); deleteSubsection(${sectionId}, '${pathStr}')" title="Delete subsection"></i>`;
+        html += `<i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSubsection(${sectionId}, '${pathStr}')" title="Add nested subsection"></i>`;
+        html += `<i class="fas fa-times delete-sub" data-onclick="event.stopPropagation(); deleteSubsection(${sectionId}, '${pathStr}')" title="Delete subsection"></i>`;
         html += `</span>`;
         html += `</li>`;
         
@@ -483,19 +483,19 @@ function renderSidebar() {
         return;
     }
     let html = `<div class="section-group">
-                    <div class="section-title ${isSharedSectionsView ? 'active' : ''}" onclick="showSharedSections()">
+                    <div class="section-title ${isSharedSectionsView ? 'active' : ''}" data-onclick="showSharedSections()">
                         <span><i class="fas fa-share-alt" style="margin-right:6px;"></i> Shared Sections</span>
                     </div>
                 </div>`;
     sections.forEach((sec) => {
         const isActive = selectedSectionId === sec.id && selectedSubsectionPath.length === 0;
         html += `<div class="section-group" data-section-id="${sec.id}">`;
-        html += `<div class="section-title ${isActive ? 'active' : ''}" onclick="selectSection(${sec.id})">
+        html += `<div class="section-title ${isActive ? 'active' : ''}" data-onclick="selectSection(${sec.id})">
                     <span><i class="fas fa-folder-open" style="margin-right:6px;"></i> ${capitalize(sec.name)}</span>
                     <span class="section-actions">
-                        <i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i>
-                        <i class="fas fa-share-alt" onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i>
-                        <i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i>
+                        <i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i>
+                        <i class="fas fa-share-alt" data-onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i>
+                        <i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i>
                     </span>
                 </div>`;
         
@@ -550,9 +550,9 @@ function sharedSidebarSubtree(subs, shareId, depth = 1, parentPath = []) {
         const path = [...parentPath, sub.name];
         const pathStr = escJs(path.join('/'));
         const share = sharedSections.find(item => item.id === Number(shareId));
-        const add = canEditSharedSection(share) ? `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSharedSubsection(${shareId}, '${pathStr}')" title="Add nested subsection"></i>` : '';
-        const remove = isSharedOwner(share) ? `<i class="fas fa-times" onclick="event.stopPropagation(); deleteSharedSubsection(${shareId}, '${pathStr}')" title="Delete subsection"></i>` : '';
-        return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-circle"></i> ${capitalize(sub.name)}<span class="section-actions">${add}${remove}</span></li>${sharedSidebarSubtree(sub.subs, shareId, depth + 1, path)}`;
+        const add = canEditSharedSection(share) ? `<i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSharedSubsection(${shareId}, '${pathStr}')" title="Add nested subsection"></i>` : '';
+        const remove = isSharedOwner(share) ? `<i class="fas fa-times" data-onclick="event.stopPropagation(); deleteSharedSubsection(${shareId}, '${pathStr}')" title="Delete subsection"></i>` : '';
+        return `<li style="padding-left:${depth * 1.2}rem;cursor:pointer;" data-onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-circle"></i> ${capitalize(sub.name)}<span class="section-actions">${add}${remove}</span></li>${sharedSidebarSubtree(sub.subs, shareId, depth + 1, path)}`;
     }).join('') + '</ul>';
 }
 
@@ -560,17 +560,17 @@ function renderSidebar() {
     if (!sidebarContainer) return;
     let html = '';
     const sharedChevron = sharedSidebarExpanded ? 'fa-chevron-down' : 'fa-chevron-right';
-    html += `<div class="section-group"><div class="section-title ${isSharedSectionsView ? 'active' : ''}" onclick="toggleSharedSidebar()"><span><i class="fas ${sharedChevron}" style="margin-right:6px"></i><i class="fas fa-share-alt" style="margin-right:6px"></i> Shared Sections</span></div>`;
+    html += `<div class="section-group"><div class="section-title ${isSharedSectionsView ? 'active' : ''}" data-onclick="toggleSharedSidebar()"><span><i class="fas ${sharedChevron}" style="margin-right:6px"></i><i class="fas fa-share-alt" style="margin-right:6px"></i> Shared Sections</span></div>`;
     if (sharedSidebarExpanded) {
         const grouped = sharedSections.reduce((groups, share) => {
             (groups[share.owner] ||= []).push(share); return groups;
         }, {});
         Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).forEach(([owner, shares]) => {
             const ownerOpen = expandedSharedOwners.has(owner);
-            html += `<div class="section-title" style="padding-left:1rem" onclick="toggleSharedOwner('${escJs(owner)}')"><span><i class="fas ${ownerOpen ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-user" style="margin-right:6px"></i>${esc(owner)}</span></div>`;
+            html += `<div class="section-title" style="padding-left:1rem" data-onclick="toggleSharedOwner('${escJs(owner)}')"><span><i class="fas ${ownerOpen ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-user" style="margin-right:6px"></i>${esc(owner)}</span></div>`;
             if (ownerOpen) shares.forEach(share => {
                 const open = expandedSharedSections.has(share.id);
-                html += `<div class="section-title" style="padding-left:2rem" onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
+                html += `<div class="section-title" style="padding-left:2rem" data-onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
                 if (open) html += sharedSidebarSubtree(share.section.subs, share.id, 3);
             });
         });
@@ -580,7 +580,7 @@ function renderSidebar() {
     sections.forEach(sec => {
         const active = selectedSectionId === sec.id && selectedSubsectionPath.length === 0 && !isSharedSectionsView;
         const open = expandedPersonalSections.has(sec.id);
-        html += `<div class="section-group" data-section-id="${sec.id}"><div class="section-title ${active ? 'active' : ''}" onclick="togglePersonalSection(${sec.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i> ${capitalize(sec.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); selectSection(${sec.id})" title="Open section"></i><i class="fas fa-share-alt" onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i><i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i><i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i></span></div>`;
+        html += `<div class="section-group" data-section-id="${sec.id}"><div class="section-title ${active ? 'active' : ''}" data-onclick="togglePersonalSection(${sec.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i> ${capitalize(sec.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); selectSection(${sec.id})" title="Open section"></i><i class="fas fa-share-alt" data-onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i><i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i><i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i></span></div>`;
         if (open) html += renderSubsectionTree(sec.subs, sec.id, [], 1);
         html += '</div>';
     });
@@ -590,11 +590,11 @@ function renderSidebar() {
 function renderSidebar() {
     if (!sidebarContainer) return;
     let html = '';
-    html += `<div class="section-group"><div class="section-title ${isSharedSectionsView ? 'active' : ''}" onclick="toggleSharedSidebar()"><span><i class="fas ${sharedSidebarExpanded ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-share-alt" style="margin-right:6px"></i> Shared Sections</span></div>`;
+    html += `<div class="section-group"><div class="section-title ${isSharedSectionsView ? 'active' : ''}" data-onclick="toggleSharedSidebar()"><span><i class="fas ${sharedSidebarExpanded ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-share-alt" style="margin-right:6px"></i> Shared Sections</span></div>`;
     if (sharedSidebarExpanded) {
         sharedSections.forEach(share => {
             const open = expandedSharedSections.has(share.id);
-            html += `<div class="section-title" style="padding-left:1rem" onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
+            html += `<div class="section-title" style="padding-left:1rem" data-onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
             if (open) html += sharedSidebarSubtree(share.section.subs, share.id, 2);
         });
     }
@@ -602,7 +602,7 @@ function renderSidebar() {
     sections.forEach(sec => {
         const active = selectedSectionId === sec.id && selectedSubsectionPath.length === 0 && !isSharedSectionsView;
         const open = expandedPersonalSections.has(sec.id);
-        html += `<div class="section-group" data-section-id="${sec.id}"><div class="section-title ${active ? 'active' : ''}" onclick="togglePersonalSection(${sec.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i> ${capitalize(sec.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" onclick="event.stopPropagation(); selectSection(${sec.id})" title="Open section"></i><i class="fas fa-share-alt" onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i><i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i><i class="fas fa-trash-alt" onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i></span></div>`;
+        html += `<div class="section-group" data-section-id="${sec.id}"><div class="section-title ${active ? 'active' : ''}" data-onclick="togglePersonalSection(${sec.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i> ${capitalize(sec.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); selectSection(${sec.id})" title="Open section"></i><i class="fas fa-share-alt" data-onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i><i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i><i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i></span></div>`;
         if (open) html += renderSubsectionTree(sec.subs, sec.id, [], 1);
         html += '</div>';
     });
@@ -617,7 +617,7 @@ renderSidebar = function() {
     const sharedGroup = groups[0];
     const sharedTitles = Array.from(sharedGroup.querySelectorAll(':scope > .section-title'));
     sharedTitles.forEach((title, index) => {
-        title.removeAttribute('onclick');
+        title.removeAttribute('data-onclick');
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
             const isChevron = event.target.closest('i') === title.querySelector('i');
@@ -635,7 +635,7 @@ renderSidebar = function() {
             stop.onclick = event => { event.stopPropagation(); stopSharingSection(id); };
             title.querySelector('.section-actions')?.appendChild(stop);
         }
-        title.removeAttribute('onclick');
+        title.removeAttribute('data-onclick');
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
             const isChevron = event.target.closest('i') === title.querySelector('i');
@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.pasteIntoSection=id=>paste(id);
   window.pasteIntoSubsection=(id,path)=>{const found=locate(id,path);if(found&&found.names.length>=5)return showSaveIndicator('Maximum subsection depth (5 levels) reached',true);paste(id,path);};
   window.pasteAsSection=()=>{if(!clipboard)return showSaveIndicator('Copy a section or subsection first',true);const copy=clone(clipboard.value);let name=copy.name||'Copied section',n=2;while(sections.some(s=>s.name===name))name=`${copy.name||'Copied section'} (${n++})`;copy.name=name;copy.id=nextId++;copy.notes||=[];copy.items||=[];copy.subs||=[];sections.push(copy);render();showSaveIndicator('Pasted as a new section');};
-  const decorate=()=>{document.querySelectorAll('.section-group[data-section-id]').forEach(group=>{const id=Number(group.dataset.sectionId),title=group.querySelector(':scope > .section-title');if(!title||title.dataset.hierarchy)return;title.dataset.hierarchy='1';title.draggable=true;title.ondragstart=e=>{dragged={type:'section',id};e.dataTransfer.setData('text/plain','section');};title.ondragover=e=>{e.preventDefault();title.classList.add('hierarchy-drop-target');};title.ondragleave=()=>title.classList.remove('hierarchy-drop-target');title.ondrop=e=>{e.preventDefault();title.classList.remove('hierarchy-drop-target');if(dragged?.type==='section'&&dragged.id!==id){const from=sections.findIndex(s=>s.id===dragged.id),to=sections.findIndex(s=>s.id===id);sections.splice(to,0,sections.splice(from,1)[0]);render();}else if(dragged?.type==='sub')moveSub(dragged,id,[]);dragged=null;};const actions=title.querySelector('.section-actions');if(actions){actions.insertAdjacentHTML('afterbegin',`<i class="fas fa-paste" onclick="event.stopPropagation(); pasteIntoSection(${id})" title="Paste as subsection"></i><i class="fas fa-copy" onclick="event.stopPropagation(); copySection(${id})" title="Copy section"></i>`);}});document.querySelectorAll('.section-group[data-section-id] .subsection-list li').forEach(li=>{if(li.dataset.hierarchy)return;const sectionId=Number(li.closest('.section-group').dataset.sectionId),name=[...li.childNodes].find(n=>n.nodeType===3)?.textContent?.trim();if(!name||name==='no subs')return;const path=(li.getAttribute('onclick')||'').match(/selectSubsection\\([^,]+, '([^']+)'\\)/)?.[1]||name;li.dataset.hierarchy='1';li.draggable=true;li.ondragstart=e=>{dragged={type:'sub',id:sectionId,path};e.dataTransfer.setData('text/plain','sub');};li.ondragover=e=>{e.preventDefault();li.classList.add('hierarchy-drop-target');};li.ondragleave=()=>li.classList.remove('hierarchy-drop-target');li.ondrop=e=>{e.preventDefault();li.classList.remove('hierarchy-drop-target');if(dragged?.type==='sub')moveSub(dragged,sectionId,parts(path));dragged=null;};li.querySelector('.section-actions')?.insertAdjacentHTML('afterbegin',`<i class="fas fa-paste" onclick="event.stopPropagation(); pasteIntoSubsection(${sectionId}, '${path}')" title="Paste nested subsection"></i><i class="fas fa-copy" onclick="event.stopPropagation(); copySubsection(${sectionId}, '${path}')" title="Copy subsection"></i>`);});};
+  const decorate=()=>{document.querySelectorAll('.section-group[data-section-id]').forEach(group=>{const id=Number(group.dataset.sectionId),title=group.querySelector(':scope > .section-title');if(!title||title.dataset.hierarchy)return;title.dataset.hierarchy='1';title.draggable=true;title.ondragstart=e=>{dragged={type:'section',id};e.dataTransfer.setData('text/plain','section');};title.ondragover=e=>{e.preventDefault();title.classList.add('hierarchy-drop-target');};title.ondragleave=()=>title.classList.remove('hierarchy-drop-target');title.ondrop=e=>{e.preventDefault();title.classList.remove('hierarchy-drop-target');if(dragged?.type==='section'&&dragged.id!==id){const from=sections.findIndex(s=>s.id===dragged.id),to=sections.findIndex(s=>s.id===id);sections.splice(to,0,sections.splice(from,1)[0]);render();}else if(dragged?.type==='sub')moveSub(dragged,id,[]);dragged=null;};const actions=title.querySelector('.section-actions');if(actions){actions.insertAdjacentHTML('afterbegin',`<i class="fas fa-paste" data-onclick="event.stopPropagation(); pasteIntoSection(${id})" title="Paste as subsection"></i><i class="fas fa-copy" data-onclick="event.stopPropagation(); copySection(${id})" title="Copy section"></i>`);}});document.querySelectorAll('.section-group[data-section-id] .subsection-list li').forEach(li=>{if(li.dataset.hierarchy)return;const sectionId=Number(li.closest('.section-group').dataset.sectionId),name=[...li.childNodes].find(n=>n.nodeType===3)?.textContent?.trim();if(!name||name==='no subs')return;const path=(li.getAttribute('data-onclick')||'').match(/selectSubsection\\([^,]+, '([^']+)'\\)/)?.[1]||name;li.dataset.hierarchy='1';li.draggable=true;li.ondragstart=e=>{dragged={type:'sub',id:sectionId,path};e.dataTransfer.setData('text/plain','sub');};li.ondragover=e=>{e.preventDefault();li.classList.add('hierarchy-drop-target');};li.ondragleave=()=>li.classList.remove('hierarchy-drop-target');li.ondrop=e=>{e.preventDefault();li.classList.remove('hierarchy-drop-target');if(dragged?.type==='sub')moveSub(dragged,sectionId,parts(path));dragged=null;};li.querySelector('.section-actions')?.insertAdjacentHTML('afterbegin',`<i class="fas fa-paste" data-onclick="event.stopPropagation(); pasteIntoSubsection(${sectionId}, '${path}')" title="Paste nested subsection"></i><i class="fas fa-copy" data-onclick="event.stopPropagation(); copySubsection(${sectionId}, '${path}')" title="Copy subsection"></i>`);});};
   const moveSub=(source,targetId,targetPath)=>{const found=locate(source.id,source.path),target=targetPath.length?locate(targetId,targetPath):null;if(!found||!target&&!sections.some(s=>s.id===targetId))return;if(target&&source.id===targetId&&target.names.join('/').startsWith(found.names.join('/')+'/'))return showSaveIndicator('A subsection cannot be moved into itself',true);const [item]=found.siblings.splice(found.index,1),siblings=target?(target.sub.subs||(target.sub.subs=[])):(sections.find(s=>s.id===targetId).subs||(sections.find(s=>s.id===targetId).subs=[]));item.name=unique(siblings,item.name);siblings.push(item);render();};
   const original=renderSidebar;renderSidebar=function(){original();decorate();};
   const add=document.getElementById('addSectionBtn');if(add){const button=document.createElement('button');button.className='add-section-btn';button.innerHTML='<i class="fas fa-paste"></i> Paste as section';button.onclick=pasteAsSection;add.insertAdjacentElement('afterend',button);} decorate();
@@ -740,7 +740,7 @@ function renderSubsectionTree(subs, sectionId, parentPath, depth = 0) {
     subs.forEach(sub => {
         const path = [...parentPath, sub.name], pathValue = escJs(path.join('/'));
         const active = selectedSectionId === sectionId && selectedSubsectionPath.length === path.length && selectedSubsectionPath.every((value, index) => value === path[index]);
-        html += `<li class="${active ? 'active ' : ''}hierarchy-subsection" draggable="true" ondragstart="startPersonalSubsectionDrag(event, ${sectionId}, '${pathValue}')" ondragover="personalSubsectionDragOver(event)" ondragleave="personalSubsectionDragLeave(event)" ondrop="dropPersonalSubsection(event, ${sectionId}, '${pathValue}')" style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="selectSubsection(${sectionId}, '${pathValue}')"><i class="fas fa-circle"></i> ${capitalize(sub.name)}<span class="section-actions" style="margin-left:auto;"><i class="fas fa-copy" onclick="event.stopPropagation(); copySubsection(${sectionId}, '${pathValue}')" title="Copy subsection"></i><i class="fas fa-paste" onclick="event.stopPropagation(); pasteIntoSubsection(${sectionId}, '${pathValue}')" title="Paste as nested subsection"></i><i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sectionId}, '${pathValue}')" title="Add nested subsection"></i><i class="fas fa-times delete-sub" onclick="event.stopPropagation(); deleteSubsection(${sectionId}, '${pathValue}')" title="Delete subsection"></i></span></li>`;
+        html += `<li class="${active ? 'active ' : ''}hierarchy-subsection" draggable="true" data-ondragstart="startPersonalSubsectionDrag(event, ${sectionId}, '${pathValue}')" data-ondragover="personalSubsectionDragOver(event)" data-ondragleave="personalSubsectionDragLeave(event)" data-ondrop="dropPersonalSubsection(event, ${sectionId}, '${pathValue}')" style="padding-left:${depth * 1.2}rem;cursor:pointer;" data-onclick="selectSubsection(${sectionId}, '${pathValue}')"><i class="fas fa-circle"></i> ${capitalize(sub.name)}<span class="section-actions" style="margin-left:auto;"><i class="fas fa-copy" data-onclick="event.stopPropagation(); copySubsection(${sectionId}, '${pathValue}')" title="Copy subsection"></i><i class="fas fa-paste" data-onclick="event.stopPropagation(); pasteIntoSubsection(${sectionId}, '${pathValue}')" title="Paste as nested subsection"></i><i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSubsection(${sectionId}, '${pathValue}')" title="Add nested subsection"></i><i class="fas fa-times delete-sub" data-onclick="event.stopPropagation(); deleteSubsection(${sectionId}, '${pathValue}')" title="Delete subsection"></i></span></li>`;
         html += renderSubsectionTree(sub.subs, sectionId, path, depth + 1);
     });
     return html + '</ul>';

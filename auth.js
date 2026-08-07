@@ -236,7 +236,7 @@ async function loadAdminUserList() {
                     ${isSelf ? ' <span style="color:#f5e56b;font-size:0.7rem;">(admin)</span>' : ''}
                 </span>
                 <span class="admin-user-date">${user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</span>
-                ${!isSelf ? `<button class="admin-delete-btn" onclick="adminDeleteUser('${user.username}')" title="Delete user"><i class="fas fa-trash-alt"></i></button><button class="admin-delete-btn" onclick="adminResetPassword('${user.username}')" title="Reset password"><i class="fas fa-key"></i></button>` : ''}
+                ${!isSelf ? `<button class="admin-delete-btn" data-admin-action="delete" data-username="${esc(user.username)}" title="Delete user"><i class="fas fa-trash-alt"></i></button><button class="admin-delete-btn" data-admin-action="reset-password" data-username="${esc(user.username)}" title="Reset password"><i class="fas fa-key"></i></button>` : ''}
             `;
             listEl.appendChild(row);
         });
@@ -583,4 +583,13 @@ document.addEventListener('DOMContentLoaded', function() {
             if (e.key === 'Enter') { e.preventDefault(); handleChangePassword(); }
         });
     }
+});
+// CSP-safe delegated handlers for dynamically rendered admin actions.
+document.addEventListener('click', event => {
+    const control = event.target.closest('[data-admin-action]');
+    if (!control) return;
+    event.preventDefault();
+    const username = control.dataset.username;
+    if (control.dataset.adminAction === 'delete') adminDeleteUser(username);
+    if (control.dataset.adminAction === 'reset-password') adminResetPassword(username);
 });

@@ -14,33 +14,33 @@
             <p class="auth-subtitle">Sign in to your personal workspace</p>
             <p class="auth-message auth-error" id="authError"></p>
             <p class="auth-message auth-success" id="authSuccess"></p>
-            <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
+            <form id="loginForm" data-submit-action="login">
                 <input id="loginUsername" autocomplete="username" placeholder="Username" required>
                 <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required>
                 <button class="auth-btn" type="submit">Log in</button>
-                <button class="auth-link" type="button" onclick="showSignupForm()">Create an account</button>
+                <button class="auth-link" type="button" data-action="show-signup">Create an account</button>
             </form>
-            <form id="signupForm" style="display:none" onsubmit="event.preventDefault(); handleSignup();">
+            <form id="signupForm" style="display:none" data-submit-action="signup">
                 <input id="signupUsername" autocomplete="username" placeholder="Username" required>
                 <input id="signupPassword" type="password" autocomplete="new-password" placeholder="Password" required>
                 <input id="signupConfirmPassword" type="password" autocomplete="new-password" placeholder="Confirm password" required>
                 <button class="auth-btn" type="submit">Create account</button>
-                <button class="auth-link" type="button" onclick="showLoginForm()">Back to login</button>
+                <button class="auth-link" type="button" data-action="show-login">Back to login</button>
             </form>
-            <form id="changePasswordForm" style="display:none" onsubmit="event.preventDefault(); handleChangePassword();">
+            <form id="changePasswordForm" style="display:none" data-submit-action="change-password">
                 <h2>Change password</h2><input id="changeCurrentPassword" type="password" placeholder="Current password" required>
                 <input id="changeNewPassword" type="password" placeholder="New password" required>
                 <input id="changeConfirmNewPassword" type="password" placeholder="Confirm new password" required>
-                <button class="auth-btn" type="submit">Update password</button><button class="auth-link" type="button" onclick="hideLoginOverlay()">Cancel</button>
+                <button class="auth-btn" type="submit">Update password</button><button class="auth-link" type="button" data-action="hide-login">Cancel</button>
             </form>
-            <form id="deleteAccountForm" style="display:none" onsubmit="event.preventDefault(); handleDeleteAccount();">
+            <form id="deleteAccountForm" style="display:none" data-submit-action="delete-account">
                 <h2>Delete account</h2><p class="auth-subtitle">This permanently removes your notes.</p>
                 <input id="deleteUsername" readonly><input id="deletePassword" type="password" placeholder="Current password" required>
-                <button class="auth-btn danger" type="submit">Delete my account</button><button class="auth-link" type="button" onclick="hideLoginOverlay()">Cancel</button>
+                <button class="auth-btn danger" type="submit">Delete my account</button><button class="auth-link" type="button" data-action="hide-login">Cancel</button>
             </form>
-            <section id="adminPanel" style="display:none"><h2>Admin panel</h2><p class="auth-subtitle">Manage user accounts.</p><div id="adminLoading">Loading users...</div><div id="adminUserList"></div><button class="auth-link" type="button" onclick="hideAdminPanel()">Close</button></section>
+            <section id="adminPanel" style="display:none"><h2>Admin panel</h2><p class="auth-subtitle">Manage user accounts.</p><div id="adminLoading">Loading users...</div><div id="adminUserList"></div><button class="auth-link" type="button" data-onclick="hideAdminPanel()">Close</button></section>
             <div style="margin-top: 1rem; text-align: center; border-top: 1px solid #2a2a1a; padding-top: 1rem;">
-                <button class="auth-link" type="button" onclick="useOffline()" style="font-size: 0.85rem;"><i class="fas fa-database"></i> Continue offline</button>
+                <button class="auth-link" type="button" data-action="offline" style="font-size: 0.85rem;"><i class="fas fa-database"></i> Continue offline</button>
             </div>
         </section>
     </div>
@@ -60,9 +60,9 @@
                     <i class="fas fa-cloud"></i>
                     <span id="statusText">Cloud sync: <span class="disconnected">not configured</span></span>
                 </div>
-                <div class="user-actions" id="userActions" style="display:none"><span id="currentUserDisplay"></span><button class="user-action-btn" onclick="showChangePasswordLoggedIn()" title="Change password"><i class="fas fa-key"></i></button><button class="user-action-btn" id="deleteMyAccountBtn" onclick="showDeleteOwnAccount()" title="Delete my account"><i class="fas fa-trash-alt"></i></button><button class="user-action-btn" id="adminPanelBtn" onclick="showAdminPanel()" title="Admin panel" style="display:none"><i class="fas fa-shield-alt"></i></button><button class="user-action-btn" onclick="handleLogout()" title="Log out"><i class="fas fa-sign-out-alt"></i></button></div><div class="status-actions">
-<button onclick="pullNow()" id="pullBtn"><i class="fas fa-download"></i> Pull</button>
-                    <button onclick="pushNow()" id="pushBtn"><i class="fas fa-upload"></i> Push</button>
+                <div class="user-actions" id="userActions" style="display:none"><span id="currentUserDisplay"></span><button class="user-action-btn" data-action="show-change-password" title="Change password"><i class="fas fa-key"></i></button><button class="user-action-btn" id="deleteMyAccountBtn" data-action="show-delete-account" title="Delete my account"><i class="fas fa-trash-alt"></i></button><button class="user-action-btn" id="adminPanelBtn" data-action="show-admin" title="Admin panel" style="display:none"><i class="fas fa-shield-alt"></i></button><button class="user-action-btn" data-action="logout" title="Log out"><i class="fas fa-sign-out-alt"></i></button></div><div class="status-actions">
+<button data-action="pull" id="pullBtn"><i class="fas fa-download"></i> Pull</button>
+                    <button data-action="push" id="pushBtn"><i class="fas fa-upload"></i> Push</button>
                 </div>
             </div>
             <button class="sidebar-close-btn" id="sidebarCloseBtn" title="Close sidebar">
@@ -83,6 +83,7 @@
     <script src="ui.js"></script>
     <script src="crud.js"></script>
     <script src="shared.js"></script>
+    <script src="events.js"></script>
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
