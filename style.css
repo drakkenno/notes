@@ -1047,3 +1047,13 @@ body {
     width: min(80%, 500px);
     box-sizing: border-box;
 }
+
+/* Controls used only on the movable Shared Sections canvas cards. */
+.shared-canvas-card .box-title { padding-right: 4.8rem; }
+.shared-card-actions { position:absolute; top:.9rem; right:1rem; display:flex; gap:.35rem; }
+.shared-card-actions button { border:0; background:transparent; color:#b8a84a; cursor:pointer; padding:.25rem; font-size:.85rem; }
+.shared-card-actions button:hover { color:#f5e56b; }
+.shared-canvas-card .drag-handle { cursor:grab; margin-right:.45rem; }
+.shared-canvas-card .drag-handle:active { cursor:grabbing; }
+.shared-hierarchy-subsection[draggable="true"] { cursor:grab; }
+.shared-hierarchy-subsection[draggable="true"]:active { cursor:grabbing; }

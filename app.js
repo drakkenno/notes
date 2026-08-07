@@ -655,3 +655,93 @@ saveToVercel = async function(data) {
     if (saved) lastCloudSaveSignature = signature;
     return saved;
 };
+// Hierarchy move/copy/paste controls added after the application modules load.
+document.addEventListener('DOMContentLoaded', () => {
+  let clipboard = null, dragged = null;
+  const clone = value => JSON.parse(JSON.stringify(value));
+  const parts = value => String(value || '').split('/').filter(Boolean);
+  const locate = (sectionId, path) => { const section=sections.find(s=>s.id===Number(sectionId)); const names=parts(path); if(!section||!names.length)return null; let siblings=section.subs||(section.subs=[]); for(let i=0;i<names.length-1;i++){const parent=siblings.find(s=>s.name===names[i]);if(!parent)return null;siblings=parent.subs||(parent.subs=[]);} const index=siblings.findIndex(s=>s.name===names.at(-1)); return index<0?null:{section,siblings,index,sub:siblings[index],names}; };
+  const unique = (siblings,name) => { const base=String(name||'Copied subsection'); let result=base,n=2; while(siblings.some(s=>s.name===result))result=`${base} (${n++})`; return result; };
+  const paste = (sectionId,path='') => { if(!clipboard)return showSaveIndicator('Copy a section or subsection first',true); const dest=path?locate(sectionId,path):null; const siblings=dest?(dest.sub.subs||(dest.sub.subs=[])):(sections.find(s=>s.id===Number(sectionId))?.subs||[]); if(!siblings)return; const copy=clone(clipboard.value); copy.name=unique(siblings,copy.name); copy.notes||=[];copy.items||=[];copy.subs||=[]; siblings.push(copy); expandedPersonalSections.add(Number(sectionId)); render();showSaveIndicator('Pasted'); };
+  window.copySection=id=>{const section=sections.find(s=>s.id===Number(id));if(section){clipboard={value:clone(section)};showSaveIndicator('Section copied');}};
+  window.copySubsection=(id,path)=>{const found=locate(id,path);if(found){clipboard={value:clone(found.sub)};showSaveIndicator('Subsection copied');}};
+  window.pasteIntoSection=id=>paste(id);
+  window.pasteIntoSubsection=(id,path)=>{const found=locate(id,path);if(found&&found.names.length>=5)return showSaveIndicator('Maximum subsection depth (5 levels) reached',true);paste(id,path);};
+  window.pasteAsSection=()=>{if(!clipboard)return showSaveIndicator('Copy a section or subsection first',true);const copy=clone(clipboard.value);let name=copy.name||'Copied section',n=2;while(sections.some(s=>s.name===name))name=`${copy.name||'Copied section'} (${n++})`;copy.name=name;copy.id=nextId++;copy.notes||=[];copy.items||=[];copy.subs||=[];sections.push(copy);render();showSaveIndicator('Pasted as a new section');};
+  const decorate=()=>{document.querySelectorAll('.section-group[data-section-id]').forEach(group=>{const id=Number(group.dataset.sectionId),title=group.querySelector(':scope > .section-title');if(!title||title.dataset.hierarchy)return;title.dataset.hierarchy='1';title.draggable=true;title.ondragstart=e=>{dragged={type:'section',id};e.dataTransfer.setData('text/plain','section');};title.ondragover=e=>{e.preventDefault();title.classList.add('hierarchy-drop-target');};title.ondragleave=()=>title.classList.remove('hierarchy-drop-target');title.ondrop=e=>{e.preventDefault();title.classList.remove('hierarchy-drop-target');if(dragged?.type==='section'&&dragged.id!==id){const from=sections.findIndex(s=>s.id===dragged.id),to=sections.findIndex(s=>s.id===id);sections.splice(to,0,sections.splice(from,1)[0]);render();}else if(dragged?.type==='sub')moveSub(dragged,id,[]);dragged=null;};const actions=title.querySelector('.section-actions');if(actions){actions.insertAdjacentHTML('afterbegin',`<i class="fas fa-paste" onclick="event.stopPropagation(); pasteIntoSection(${id})" title="Paste as subsection"></i><i class="fas fa-copy" onclick="event.stopPropagation(); copySection(${id})" title="Copy section"></i>`);}});document.querySelectorAll('.section-group[data-section-id] .subsection-list li').forEach(li=>{if(li.dataset.hierarchy)return;const sectionId=Number(li.closest('.section-group').dataset.sectionId),name=[...li.childNodes].find(n=>n.nodeType===3)?.textContent?.trim();if(!name||name==='no subs')return;const path=(li.getAttribute('onclick')||'').match(/selectSubsection\\([^,]+, '([^']+)'\\)/)?.[1]||name;li.dataset.hierarchy='1';li.draggable=true;li.ondragstart=e=>{dragged={type:'sub',id:sectionId,path};e.dataTransfer.setData('text/plain','sub');};li.ondragover=e=>{e.preventDefault();li.classList.add('hierarchy-drop-target');};li.ondragleave=()=>li.classList.remove('hierarchy-drop-target');li.ondrop=e=>{e.preventDefault();li.classList.remove('hierarchy-drop-target');if(dragged?.type==='sub')moveSub(dragged,sectionId,parts(path));dragged=null;};li.querySelector('.section-actions')?.insertAdjacentHTML('afterbegin',`<i class="fas fa-paste" onclick="event.stopPropagation(); pasteIntoSubsection(${sectionId}, '${path}')" title="Paste nested subsection"></i><i class="fas fa-copy" onclick="event.stopPropagation(); copySubsection(${sectionId}, '${path}')" title="Copy subsection"></i>`);});};
+  const moveSub=(source,targetId,targetPath)=>{const found=locate(source.id,source.path),target=targetPath.length?locate(targetId,targetPath):null;if(!found||!target&&!sections.some(s=>s.id===targetId))return;if(target&&source.id===targetId&&target.names.join('/').startsWith(found.names.join('/')+'/'))return showSaveIndicator('A subsection cannot be moved into itself',true);const [item]=found.siblings.splice(found.index,1),siblings=target?(target.sub.subs||(target.sub.subs=[])):(sections.find(s=>s.id===targetId).subs||(sections.find(s=>s.id===targetId).subs=[]));item.name=unique(siblings,item.name);siblings.push(item);render();};
+  const original=renderSidebar;renderSidebar=function(){original();decorate();};
+  const add=document.getElementById('addSectionBtn');if(add){const button=document.createElement('button');button.className='add-section-btn';button.innerHTML='<i class="fas fa-paste"></i> Paste as section';button.onclick=pasteAsSection;add.insertAdjacentElement('afterend',button);} decorate();
+});
+
+// Shared-section hierarchy controls follow the contributor permission model.
+document.addEventListener('DOMContentLoaded', () => {
+  const hierarchySidebarRenderer = renderSidebar;
+  renderSidebar = function () {
+    hierarchySidebarRenderer();
+    const sharedEditor = typeof activeSharedEditorShare === 'function' ? activeSharedEditorShare() : null;
+    if (!sharedEditor) return;
+    const editable = canEditSharedSection(sharedEditor);
+    document.querySelectorAll('.section-group[data-section-id] .fa-copy, .section-group[data-section-id] .fa-paste').forEach(control => {
+      control.style.display = editable ? '' : 'none';
+    });
+    document.querySelectorAll('.section-group[data-section-id] > .section-title, .section-group[data-section-id] .subsection-list li').forEach(item => {
+      item.draggable = editable;
+    });
+    const pasteAsSection = document.querySelector('#addSectionBtn + .add-section-btn');
+    if (pasteAsSection) {
+      pasteAsSection.style.display = editable ? 'none' : '';
+      pasteAsSection.title = editable ? 'Shared sections can be pasted into this section or one of its subsections' : '';
+    }
+  };
+});
+
+// Do not allow programmatic invocation of hierarchy actions for reader-only shares.
+document.addEventListener('DOMContentLoaded', () => {
+  const permitted = () => { const share = typeof activeSharedEditorShare === 'function' ? activeSharedEditorShare() : null; return !share || canEditSharedSection(share); };
+  ['copySection', 'copySubsection', 'pasteIntoSection', 'pasteIntoSubsection', 'pasteAsSection'].forEach(name => {
+    const operation = window[name];
+    if (!operation) return;
+    window[name] = (...args) => {
+      if (!permitted()) return showSaveIndicator('You have view-only access to this shared section', true);
+      return operation(...args);
+    };
+  });
+});
+
+// Personal subsection tree: explicit hierarchy controls, matching the shared control order.
+let personalSubsectionDrag = null;
+function personalSubsectionNode(sectionId, path) {
+    const section = sections.find(item => item.id === Number(sectionId));
+    const names = String(path || '').split('/').filter(Boolean);
+    if (!section || !names.length) return null;
+    let siblings = section.subs || (section.subs = []);
+    for (let i = 0; i < names.length - 1; i++) { const parent = siblings.find(item => item.name === names[i]); if (!parent) return null; siblings = parent.subs || (parent.subs = []); }
+    const index = siblings.findIndex(item => item.name === names.at(-1));
+    return index < 0 ? null : { section, siblings, index, sub: siblings[index], names };
+}
+function personalSubsectionUnique(siblings, name) { const base = String(name || 'Subsection'); let output = base, number = 2; while (siblings.some(item => item.name === output)) output = `${base} (${number++})`; return output; }
+window.startPersonalSubsectionDrag = function(event, sectionId, path) { personalSubsectionDrag = { sectionId: Number(sectionId), path }; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', 'personal-subsection'); event.currentTarget.classList.add('hierarchy-dragging'); };
+window.personalSubsectionDragOver = function(event) { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; event.currentTarget.classList.add('hierarchy-drop-target'); };
+window.personalSubsectionDragLeave = function(event) { event.currentTarget.classList.remove('hierarchy-drop-target'); };
+window.dropPersonalSubsection = function(event, sectionId, path) {
+    event.preventDefault(); event.currentTarget.classList.remove('hierarchy-drop-target');
+    const source = personalSubsectionDrag && personalSubsectionNode(personalSubsectionDrag.sectionId, personalSubsectionDrag.path);
+    const target = personalSubsectionNode(sectionId, path); personalSubsectionDrag = null;
+    if (!source || !target) return;
+    if (source.section.id === target.section.id && target.names.join('/').startsWith(source.names.join('/') + '/')) return showSaveIndicator('A subsection cannot be moved into itself', true);
+    if (target.names.length >= 5) return showSaveIndicator('Maximum subsection depth (5 levels) reached', true);
+    const [moved] = source.siblings.splice(source.index, 1), siblings = target.sub.subs || (target.sub.subs = []);
+    moved.name = personalSubsectionUnique(siblings, moved.name); siblings.push(moved); render();
+};
+function renderSubsectionTree(subs, sectionId, parentPath, depth = 0) {
+    if (!subs || !subs.length) return '';
+    let html = '<ul class="subsection-list">';
+    subs.forEach(sub => {
+        const path = [...parentPath, sub.name], pathValue = escJs(path.join('/'));
+        const active = selectedSectionId === sectionId && selectedSubsectionPath.length === path.length && selectedSubsectionPath.every((value, index) => value === path[index]);
+        html += `<li class="${active ? 'active ' : ''}hierarchy-subsection" draggable="true" ondragstart="startPersonalSubsectionDrag(event, ${sectionId}, '${pathValue}')" ondragover="personalSubsectionDragOver(event)" ondragleave="personalSubsectionDragLeave(event)" ondrop="dropPersonalSubsection(event, ${sectionId}, '${pathValue}')" style="padding-left:${depth * 1.2}rem;cursor:pointer;" onclick="selectSubsection(${sectionId}, '${pathValue}')"><i class="fas fa-circle"></i> ${capitalize(sub.name)}<span class="section-actions" style="margin-left:auto;"><i class="fas fa-copy" onclick="event.stopPropagation(); copySubsection(${sectionId}, '${pathValue}')" title="Copy subsection"></i><i class="fas fa-paste" onclick="event.stopPropagation(); pasteIntoSubsection(${sectionId}, '${pathValue}')" title="Paste as nested subsection"></i><i class="fas fa-plus-circle" onclick="event.stopPropagation(); addSubsection(${sectionId}, '${pathValue}')" title="Add nested subsection"></i><i class="fas fa-times delete-sub" onclick="event.stopPropagation(); deleteSubsection(${sectionId}, '${pathValue}')" title="Delete subsection"></i></span></li>`;
+        html += renderSubsectionTree(sub.subs, sectionId, path, depth + 1);
+    });
+    return html + '</ul>';
+}
