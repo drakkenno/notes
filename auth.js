@@ -15,7 +15,7 @@ function initAuth() {
     if (isAuthInitialized) return;
     isAuthInitialized = true;
 
-    const savedUser = localStorage.getItem(AUTH_STORAGE_KEY);
+    const savedUser = sessionStorage.getItem(AUTH_STORAGE_KEY);
     if (savedUser) {
         try {
             currentUser = JSON.parse(savedUser);
@@ -28,7 +28,7 @@ function initAuth() {
         } catch (e) {
             console.warn('Failed to restore session:', e);
             currentUser = null;
-            localStorage.removeItem(AUTH_STORAGE_KEY);
+            sessionStorage.removeItem(AUTH_STORAGE_KEY);
         }
     }
 
@@ -296,7 +296,7 @@ async function apiAuth(action, body) {
     const url = `${AUTH_API_URL}?action=${action}`;
     const response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}) },
         body: JSON.stringify(body)
     });
     const data = await response.json();
@@ -332,7 +332,7 @@ async function handleLogin() {
     try {
         const data = await apiAuth('login', { username, password });
         currentUser = { username: data.username, gistId: data.gistId, token: data.token };
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
+        sessionStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(currentUser));
         hideLoginOverlay();
         updateUserDisplay();
         // Cloud data is loaded only when the user presses Pull.
@@ -508,7 +508,7 @@ async function handleDeleteAccount() {
         successEl.style.display = 'block';
         if (currentUser && currentUser.username === username) {
             currentUser = null;
-            localStorage.removeItem(AUTH_STORAGE_KEY);
+            sessionStorage.removeItem(AUTH_STORAGE_KEY);
             sections = [];
             nextId = 1;
             selectedSectionId = null;
@@ -542,7 +542,7 @@ async function handleDeleteAccount() {
 function handleLogout() {
     if (!confirm('Are you sure you want to log out?')) return;
     currentUser = null;
-    localStorage.removeItem(AUTH_STORAGE_KEY);
+    sessionStorage.removeItem(AUTH_STORAGE_KEY);
     sections = [];
     nextId = 1;
     selectedSectionId = null;
