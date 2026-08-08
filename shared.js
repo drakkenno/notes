@@ -966,3 +966,73 @@ sharedSidebarSubtree = function(subs, shareId, depth = 1, parentPath = []) {
     const share = sharedSections.find(item => item.id === Number(shareId)), editable = !!share && canEditSharedSection(share);
     return '<ul class="subsection-list shared-subsection-tree">' + subs.map(sub => { const path = [...parentPath, sub.name], pathStr = escJs(path.join('/')); const controls = editable ? `<span class="section-actions"><i class="fas fa-copy" data-onclick="event.stopPropagation(); copySharedSubsection(${shareId}, '${pathStr}')" title="Copy subsection"></i><i class="fas fa-paste" data-onclick="event.stopPropagation(); pasteSharedIntoSubsection(${shareId}, '${pathStr}')" title="Paste as nested subsection"></i><i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSharedSubsection(${shareId}, '${pathStr}')" title="Add subsection"></i><i class="fas fa-times" data-onclick="event.stopPropagation(); deleteSharedSubsection(${shareId}, '${pathStr}')" title="Delete subsection"></i></span>` : ''; return `<li class="shared-hierarchy-subsection" style="padding-left:${depth * 1.2}rem;cursor:pointer;" data-onclick="event.stopPropagation(); openSharedSubsection(${shareId}, '${pathStr}')"><i class="fas fa-circle"></i> ${esc(capitalize(sub.name))}${controls}</li>${sharedSidebarSubtree(sub.subs, shareId, depth + 1, path)}`; }).join('') + '</ul>';
 };
+
+// Shared subsections keep their own share payload, while exposing the same
+// note, list, item, and location controls available in personal subsections.
+function mutateSharedSubsection(shareId, subPath, mutation) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
+    if (!share || !sub || !canEditSharedSection(share)) return;
+    mutation(sub);
+    saveSharedSection(share);
+    render();
+}
+window.addSharedSubItem = function(shareId, subPath, listIndex) {
+    mutateSharedSubsection(shareId, subPath, sub => {
+        const list = sub.items?.[listIndex];
+        if (list) (list.items || (list.items = [])).push({ text: 'New Item', done: false, rating: 0 });
+    });
+};
+window.deleteSharedSubItem = function(shareId, subPath, listIndex, itemIndex) {
+    mutateSharedSubsection(shareId, subPath, sub => sub.items?.[listIndex]?.items?.splice(itemIndex, 1));
+};
+window.toggleSharedSubItem = function(shareId, subPath, listIndex, itemIndex) {
+    mutateSharedSubsection(shareId, subPath, sub => {
+        const item = sub.items?.[listIndex]?.items?.[itemIndex];
+        if (item) item.done = !item.done;
+    });
+};
+window.setSharedSubLocation = function(shareId, subPath, listIndex, itemIndex = null) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
+    const target = itemIndex === null ? sub?.items?.[listIndex] : sub?.items?.[listIndex]?.items?.[itemIndex];
+    if (!share || !target || !canEditSharedSection(share)) return;
+    const label = itemIndex === null ? 'Paste Google Maps link or address for this list:' : 'Paste Google Maps link or address:';
+    const location = prompt(label, target.location || '');
+    if (location === null) return;
+    target.location = location.trim();
+    saveSharedSection(share);
+    render();
+};
+
+const renderSharedSectionBeforeIndependentSubsections = renderSharedSection;
+renderSharedSection = function(share) {
+    if (!selectedSharedSubsectionPath.length) return renderSharedSectionBeforeIndependentSubsections(share);
+    const sub = getSharedSubsection(share, selectedSharedSubsectionPath);
+    if (!sub) { selectedSharedSubsectionPath = []; return renderSharedSectionBeforeIndependentSubsections(share); }
+    const editable = canEditSharedSection(share);
+    const path = escJs(selectedSharedSubsectionPath.join('/'));
+    const notes = sub.notes || [];
+    const lists = sub.items || [];
+    let html = `<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i><h1>${esc(capitalize(sub.name))}</h1><span style="color:#7a7a5a;font-size:.9rem;margin-left:.5rem">(subsection)</span></div><button class="back-btn" data-onclick="closeSharedSubsection()"><i class="fas fa-arrow-left"></i> Back</button></div>`;
+    if (!notes.length && !lists.length) html += `<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>Subsection: ${esc(capitalize(sub.name))}<br><span style="font-size:.9rem;color:#7a7a5a">Add notes and lists below</span></p></div>`;
+    html += '<div class="box-grid--responsive" id="sharedSubsectionGrid">';
+    notes.forEach((note, noteIndex) => {
+        html += `<div class="note-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedSubNote(${share.id}, '${path}', ${noteIndex})" title="Delete note"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'note', ${noteIndex}, 0, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'note', ${noteIndex}, 0, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></div>`;
+    });
+    lists.forEach((list, listIndex) => {
+        const listLocation = renderLocationBadge(list.location);
+        html += `<div class="list-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedSubList(${share.id}, '${path}', ${listIndex})" title="Delete list"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'list', ${listIndex}, 0, 'title', this.value)">` : `<span>${esc(list.title || 'List')}</span>`}${listLocation}${editable ? `<span class="box-actions"><i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSharedSubLocation(${share.id}, '${path}', ${listIndex})" title="Add or edit location"></i><i class="fas fa-plus" data-onclick="addSharedSubItem(${share.id}, '${path}', ${listIndex})" title="Add item"></i></span>` : ''}</div><div class="list-items">`;
+        (list.items || []).forEach((item, itemIndex) => {
+            const icon = item.done ? 'fa-check-circle' : 'fa-circle';
+            const itemLocation = renderLocationBadge(item.location, true);
+            html += `<div class="sub-list-item"><i class="fas ${icon}" style="color:${item.done ? '#f5e56b' : '#7a7a5a'};${editable ? 'cursor:pointer' : ''}" ${editable ? `data-onclick="toggleSharedSubItem(${share.id}, '${path}', ${listIndex}, ${itemIndex})"` : ''}></i>${editable ? `<textarea class="editable-item" rows="1" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'item', ${listIndex}, ${itemIndex}, 'text', this.value)">${esc(item.text || '')}</textarea>` : `<span>${esc(item.text || '')}</span>`}${itemLocation}${editable ? `<i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSharedSubLocation(${share.id}, '${path}', ${listIndex}, ${itemIndex})" title="Add or edit location"></i><i class="fas fa-times item-delete" data-onclick="deleteSharedSubItem(${share.id}, '${path}', ${listIndex}, ${itemIndex})" title="Delete item"></i>` : ''}</div>`;
+        });
+        if (!(list.items || []).length) html += '<div class="empty-message"><i class="fas fa-plus-circle"></i> No items yet.</div>';
+        html += `</div>${editable ? `<button class="add-item-btn" data-onclick="addSharedSubItem(${share.id}, '${path}', ${listIndex})"><i class="fas fa-plus"></i> Add item</button>` : ''}</div>`;
+    });
+    html += '</div>';
+    if (editable) html += `<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #2a2a1a;display:flex;gap:.8rem;flex-wrap:wrap"><button class="action-btn" data-onclick="addSharedSubNote(${share.id}, '${path}')"><i class="fas fa-plus"></i> Add note</button><button class="action-btn" data-onclick="addSharedSubList(${share.id}, '${path}')"><i class="fas fa-plus"></i> Add list</button><button class="action-btn" data-onclick="addSharedSubsection(${share.id}, '${path}')"><i class="fas fa-plus"></i> Add nested subsection</button></div>`;
+    mainContainer.innerHTML = html + '</div>';
+    setTimeout(autoResizeTextareas, 10);
+};
