@@ -1051,6 +1051,16 @@ window.openSharedSubsection = function(shareId, path) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     if (!share) return;
     const subsectionPath = Array.isArray(path) ? path : String(path).split('/').filter(Boolean);
-    window.openSharedFromSidebar(shareId);
-    selectSubsection(share.section.id, subsectionPath);
+    if (!getSharedSubsection(share, subsectionPath)) {
+        showSaveIndicator('Shared subsection not found', true);
+        return;
+    }
+    if (activeSharedEditorId !== null && typeof leaveSharedEditor === 'function') leaveSharedEditor();
+    activeSharedEditorId = null;
+    selectedSharedSectionId = share.id;
+    selectedSharedSubsectionPath = subsectionPath;
+    selectedSectionId = null;
+    selectedSubsectionPath = [];
+    isSharedSectionsView = true;
+    render();
 };

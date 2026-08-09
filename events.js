@@ -209,3 +209,45 @@ document.addEventListener('keydown', event => {
   const run = (event, attribute) => { const element=event.target.closest(`[${attribute}]`); if(!element)return; const source=element.getAttribute(attribute)||''; let statement='',quote='',depth=0; for(let i=0;i<=source.length;i++){const c=source[i]||';'; if(quote){statement+=c;if(c===quote&&source[i-1]!=='\\')quote='';continue;} if(c==='"'||c==="'"){quote=c;statement+=c;continue;} if(c==='(')depth++; if(c===')')depth--; if(c===';'&&depth===0){const result=invoke(statement,event,element); if(result)event.preventDefault(); statement='';} else statement+=c;} };
   [['click','data-onclick'],['change','data-onchange'],['mousedown','data-onmousedown'],['dragstart','data-ondragstart'],['dragover','data-ondragover'],['dragleave','data-ondragleave'],['drop','data-ondrop']].forEach(([type,attribute])=>document.addEventListener(type,event=>run(event,attribute)));
 })();
+
+// Double-click a list card's non-editable surface to expand it to all items.
+document.addEventListener('dblclick', event => {
+    const box = event.target.closest('#boxGrid > .list-box');
+    const interactive = event.target.closest('input, textarea, button, a, .star-half, .box-actions, .sub-list-item');
+    if (!box || interactive) return;
+    event.preventDefault();
+    window.selectBox?.(box);
+    fitListBoxToContents(box);
+    showSaveIndicator('List fitted to all items');
+});
+
+window.addEventListener('resize', () => requestAnimationFrame(updateCanvasExtent));
+
+// Subsections are navigation-only. Drag/drop remains available only for
+// top-level section titles, where it changes section order.
+function disableSubsectionDragAndDrop(root = document) {
+    const selector = '.subsection-list li, .hierarchy-subsection, .shared-hierarchy-subsection';
+    root.querySelectorAll(selector).forEach(subsection => {
+        subsection.draggable = false;
+        ['draggable', 'data-ondragstart', 'data-ondragover', 'data-ondragleave', 'data-ondrop'].forEach(attribute => subsection.removeAttribute(attribute));
+        subsection.ondragstart = null;
+        subsection.ondragover = null;
+        subsection.ondragleave = null;
+        subsection.ondrop = null;
+        subsection.classList.remove('hierarchy-dragging', 'hierarchy-drop-target');
+    });
+}
+
+const renderWithSectionOrderOnly = render;
+render = function(...args) {
+    const result = renderWithSectionOrderOnly(...args);
+    disableSubsectionDragAndDrop();
+    return result;
+};
+
+document.addEventListener('DOMContentLoaded', () => disableSubsectionDragAndDrop());
+document.addEventListener('dragstart', event => {
+    if (!event.target.closest('.subsection-list li, .hierarchy-subsection, .shared-hierarchy-subsection')) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+}, true);

@@ -229,7 +229,7 @@ function renderMain() {
                         </div>`;
             }
             
-            html += `<div class="box-grid--responsive" id="boxGrid">`;
+            html += `<div class="box-grid" id="boxGrid">`;
             
             // Subsection notes
             if (hasSubNotes) {
@@ -241,6 +241,7 @@ function renderMain() {
                     const subPathStr = selectedSubsectionPath.join('/');
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
+                             style="left:${x}px; top:${y}px; width:${width}px; height:${height}px;"
                              data-type="subNote" data-sub-path="${esc(subPathStr)}" data-index="${ni}">
                             <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteSubNote('${subPathStr}', ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
                             <div class="box-title">
@@ -276,6 +277,7 @@ function renderMain() {
                     const subPathStr = selectedSubsectionPath.join('/');
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
+                             style="left:${x}px; top:${y}px; width:${width}px; height:${height}px;"
                              data-type="subList" data-sub-path="${esc(subPathStr)}" data-index="${liIdx}">
                             <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteSubList('${subPathStr}', ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
                             <div class="box-title">
@@ -334,10 +336,11 @@ function renderMain() {
             
             const subPathStr = selectedSubsectionPath.join('/');
             html += `
-                <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #2a2a1a; display: flex; gap: 0.8rem; flex-wrap: wrap;">
+                <div class='canvas-actions'>
                     <button class="action-btn" data-onclick="addSubNote('${subPathStr}')"><i class="fas fa-plus"></i> Add note</button>
                     <button class="action-btn" data-onclick="addSubList('${subPathStr}')"><i class="fas fa-plus"></i> Add list</button>
                     <button class="action-btn" data-onclick="addSubsection(${sec.id}, '${subPathStr}')"><i class="fas fa-plus"></i> Add nested subsection</button>
+                    <button class="action-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>
                 </div>
             `;
             
@@ -347,7 +350,7 @@ function renderMain() {
             }, 50);
         } else {
             // Show parent section content
-            html += `<div class="box-grid--responsive" id="boxGrid">`;
+            html += `<div class="box-grid" id="boxGrid">`;
             
             // Section notes
             if (sec.notes && sec.notes.length > 0) {
@@ -358,6 +361,7 @@ function renderMain() {
                     const height = note.height || 160;
                     html += `
                         <div class="note-box" id="box-${sec.id}-note-${ni}"
+                             style="left:${x}px; top:${y}px; width:${width}px; height:${height}px;"
                              data-type="note" data-section-id="${sec.id}" data-index="${ni}">
                             <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteNote(${sec.id}, ${ni})" title="Delete note"><i class="fas fa-times"></i></button>
                             <div class="box-title">
@@ -392,6 +396,7 @@ function renderMain() {
                     const listLocBadge = renderLocationBadge(list.location);
                     html += `
                         <div class="list-box" id="box-${sec.id}-list-${liIdx}"
+                             style="left:${x}px; top:${y}px; width:${width}px; height:${height}px;"
                              data-type="list" data-section-id="${sec.id}" data-index="${liIdx}">
                             <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteList(${sec.id}, ${liIdx})" title="Delete list"><i class="fas fa-times"></i></button>
                             <div class="box-title">
@@ -467,10 +472,11 @@ function renderMain() {
             }
             
             html += `
-                <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #2a2a1a; display: flex; gap: 0.8rem; flex-wrap: wrap;">
+                <div class='canvas-actions'>
                     <button class="action-btn" data-onclick="addNoteToSection(${sec.id})"><i class="fas fa-plus"></i> Add note</button>
                     <button class="action-btn" data-onclick="addListToSection(${sec.id})"><i class="fas fa-plus"></i> Add list</button>
                     <button class="action-btn" data-onclick="addSubsection(${sec.id})"><i class="fas fa-plus"></i> Add subsection</button>
+                    <button class="action-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>
                 </div>
             `;
             
@@ -484,7 +490,11 @@ function renderMain() {
     html += `</div>`;
     mainContainer.innerHTML = html;
     // Size every item textarea to its content
-    setTimeout(autoResizeTextareas, 10);
+    setTimeout(() => {
+        autoResizeTextareas();
+        autoFitDefaultListBoxes();
+        updateCanvasExtent();
+    }, 10);
 }
 
 // ============================================================
@@ -606,6 +616,137 @@ function updateSubItemInSub(subPath, listIndex, subIndex, newValue) {
 
 let dragData = null;
 
+function getBoxData(box) {
+    if (!box) return null;
+    const type = box.dataset.type || (box.dataset.sectionId ? 'section' : null);
+    const sectionId = box.dataset.sectionId ? parseInt(box.dataset.sectionId) : null;
+    const index = box.dataset.index !== undefined ? parseInt(box.dataset.index) : null;
+    const subPath = box.dataset.subPath || null;
+    let item = null;
+
+    if (type === 'section') {
+        item = sections.find(section => section.id === sectionId);
+    } else if (type === 'note' || type === 'list') {
+        const section = sections.find(entry => entry.id === sectionId);
+        item = type === 'note' ? section?.notes?.[index] : section?.items?.[index];
+    } else if (type === 'subNote' || type === 'subList') {
+        const section = sections.find(entry => entry.id === selectedSectionId);
+        const sub = section && subPath ? getSubsectionByPath(section, subPath.split('/')) : null;
+        item = type === 'subNote' ? sub?.notes?.[index] : sub?.items?.[index];
+    }
+
+    return { box, type, sectionId, subPath, index, item };
+}
+
+function updateCanvasExtent() {
+    const grid = document.getElementById('boxGrid');
+    const canvas = document.getElementById('canvas');
+    if (!grid || !canvas) return;
+
+    const boxes = Array.from(grid.children).filter(element => element.matches('.note-box, .list-box'));
+    const furthestRight = boxes.reduce((edge, box) => Math.max(edge, box.offsetLeft + box.offsetWidth), 0);
+    const furthestBottom = boxes.reduce((edge, box) => Math.max(edge, box.offsetTop + box.offsetHeight), 0);
+    const styles = getComputedStyle(canvas);
+    const availableWidth = canvas.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+    const availableHeight = Math.max(500, canvas.clientHeight - grid.offsetTop - parseFloat(styles.paddingBottom));
+
+    grid.style.width = `${Math.max(availableWidth, furthestRight + 80)}px`;
+    grid.style.height = `${Math.max(availableHeight, furthestBottom + 100)}px`;
+}
+
+function fitListBoxToContents(box, persist = true) {
+    const data = getBoxData(box);
+    if (!data?.item || !box.classList.contains('list-box')) return;
+
+    box.classList.add('fit-to-contents');
+    box.style.height = 'auto';
+    const fittedHeight = Math.max(120, Math.ceil(box.scrollHeight + 2));
+    box.style.height = `${fittedHeight}px`;
+    box.classList.remove('fit-to-contents');
+    data.item.height = fittedHeight;
+    data.item.autoSize = true;
+    updateCanvasExtent();
+    if (persist) saveLocalData();
+}
+
+function fitNoteBoxToContents(box, persist = true) {
+    const data = getBoxData(box);
+    const textarea = box?.querySelector('.editable-content');
+    if (!data?.item || !textarea || !box.classList.contains('note-box')) return;
+
+    box.classList.add('show-all-content');
+    textarea.style.maxHeight = 'none';
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    box.style.height = 'auto';
+    const fittedHeight = Math.max(160, Math.ceil(box.scrollHeight + 2));
+    box.style.height = `${fittedHeight}px`;
+    data.item.height = fittedHeight;
+    data.item.autoSize = true;
+    updateCanvasExtent();
+    if (persist) saveLocalData();
+}
+
+function autoFitDefaultListBoxes() {
+    document.querySelectorAll('#boxGrid > .list-box').forEach(box => {
+        const data = getBoxData(box);
+        if (data?.item && data.item.autoSize !== false) fitListBoxToContents(box, false);
+    });
+    document.querySelectorAll('#boxGrid > .note-box[data-type]').forEach(box => {
+        const data = getBoxData(box);
+        if (data?.item?.autoSize === true) fitNoteBoxToContents(box, false);
+    });
+}
+
+window.organizeCanvas = function() {
+    const grid = document.getElementById('boxGrid');
+    const canvas = document.getElementById('canvas');
+    if (!grid || !canvas) return;
+    const boxes = Array.from(grid.children).filter(element => element.matches('.note-box, .list-box'));
+    if (!boxes.length) return;
+
+    grid.style.width = '';
+    const canvasStyles = getComputedStyle(canvas);
+    const availableWidth = canvas.clientWidth - parseFloat(canvasStyles.paddingLeft) - parseFloat(canvasStyles.paddingRight);
+    const gap = 24;
+    const usableWidth = Math.max(200, availableWidth - 80);
+    const columnCount = Math.max(1, Math.floor((usableWidth + gap) / (320 + gap)));
+    const boxWidth = Math.max(200, Math.min(360, Math.floor((usableWidth - gap * (columnCount - 1)) / columnCount)));
+
+    boxes.forEach(box => {
+        const data = getBoxData(box);
+        box.style.width = `${boxWidth}px`;
+        if (data?.item) data.item.width = boxWidth;
+    });
+    autoResizeTextareas();
+    boxes.forEach(box => {
+        if (box.classList.contains('list-box')) fitListBoxToContents(box, false);
+        else if (box.dataset.type) fitNoteBoxToContents(box, false);
+    });
+
+    let x = 0;
+    let y = 0;
+    let rowHeight = 0;
+    boxes.forEach(box => {
+        if (x > 0 && x + box.offsetWidth > usableWidth) {
+            x = 0;
+            y += rowHeight + gap;
+            rowHeight = 0;
+        }
+        box.style.left = `${x}px`;
+        box.style.top = `${y}px`;
+        const data = getBoxData(box);
+        updateItemPosition(data, x, y);
+        rowHeight = Math.max(rowHeight, box.offsetHeight);
+        x += box.offsetWidth + gap;
+    });
+
+    updateCanvasExtent();
+    canvas.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+    saveLocalData();
+    showSaveIndicator(`${boxes.length} card${boxes.length === 1 ? '' : 's'} organized`);
+};
+
 function makeDraggable() {
     document.querySelectorAll('.drag-handle').forEach(handle => {
         handle.removeEventListener('mousedown', startDrag);
@@ -712,6 +853,7 @@ function onDrag(e) {
     dragData.box.style.top = newY + 'px';
     
     updateItemPosition(dragData, newX, newY);
+    updateCanvasExtent();
 }
 
 function stopDrag() {
@@ -777,11 +919,6 @@ function onResize(e) {
     let newWidth = Math.max(200, resizeData.startWidth + dx);
     let newHeight = Math.max(120, resizeData.startHeight + dy);
     
-    // Constrain to viewport
-    const maxWidth = window.innerWidth - 100;
-    const maxHeight = window.innerHeight - 150;
-    newWidth = Math.min(newWidth, maxWidth);
-    newHeight = Math.min(newHeight, maxHeight);
     
     resizeData.box.style.width = newWidth + 'px';
     resizeData.box.style.height = newHeight + 'px';
@@ -789,6 +926,16 @@ function onResize(e) {
     resizeData.box.style.minHeight = '120px';
     
     updateItemSize(resizeData, newWidth, newHeight);
+    const data = getBoxData(resizeData.box);
+    if (data?.item && ['note', 'list', 'subNote', 'subList'].includes(data.type)) {
+        data.item.autoSize = false;
+        if (data.type === 'note' || data.type === 'subNote') {
+            resizeData.box.classList.remove('show-all-content');
+            const textarea = resizeData.box.querySelector('.editable-content');
+            if (textarea) textarea.style.maxHeight = '';
+        }
+    }
+    updateCanvasExtent();
 }
 
 function stopResize() {

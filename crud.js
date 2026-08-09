@@ -175,7 +175,7 @@ window.addListToSection = function(sectionId) {
     if (!sec) return;
     if (!sec.items) sec.items = [];
     const liIdx = sec.items.length;
-    sec.items.push({ title: 'New List', items: [], x: 340 + (liIdx * 20) % 200, y: 10 + (liIdx * 20) % 200, width: 320, height: 200 });
+    sec.items.push({ title: 'New List', items: [], x: 340 + (liIdx * 20) % 200, y: 10 + (liIdx * 20) % 200, width: 320, height: 140, autoSize: true });
     render();
     setTimeout(() => {
         const titleInputs = document.querySelectorAll('.list-box .editable-title');
@@ -284,7 +284,7 @@ window.addSubList = function(subPath) {
     if (!sub) return;
     if (!sub.items) sub.items = [];
     const liIdx = sub.items.length;
-    sub.items.push({ title: 'New List', items: [], x: 340 + (liIdx * 20) % 200, y: 10 + (liIdx * 20) % 200, width: 320, height: 200 });
+    sub.items.push({ title: 'New List', items: [], x: 340 + (liIdx * 20) % 200, y: 10 + (liIdx * 20) % 200, width: 320, height: 140, autoSize: true });
     render();
     setTimeout(() => {
         const titleInputs = document.querySelectorAll('.list-box .editable-title');

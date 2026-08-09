@@ -1084,3 +1084,65 @@ body {
 }
 /* Keyboard-selected cards retain a clear, non-editing focus state. */
 .note-box.box-selected, .list-box.box-selected { outline: 2px solid #f5e56b; outline-offset: 3px; }
+
+/* Let card controls use the available width before wrapping to another row. */
+.note-box .box-title,
+.list-box .box-title {
+    align-content: flex-start;
+    flex-wrap: wrap;
+}
+.note-box .box-title .editable-title,
+.list-box .box-title .editable-title {
+    min-width: 4rem;
+    max-width: 100%;
+}
+.note-box .box-title .box-actions,
+.list-box .box-title .box-actions {
+    align-items: center;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+}
+.list-box .sub-list-item .editable-item {
+    flex: 1 1 10rem;
+    min-width: min(8rem, 100%);
+    max-width: 100%;
+}
+.list-box .sub-list-item .item-rating {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+}
+.list-box .list-rating-badge {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+/* Absolute-positioned cards define a scrollable workspace through JS-calculated extents. */
+.canvas {
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+}
+.box-grid {
+    min-width: 100%;
+    min-height: calc(100vh - 150px);
+}
+.list-box.fit-to-contents .list-items {
+    max-height: none !important;
+    overflow-y: visible !important;
+}
+
+.canvas-actions {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+    width: 100%;
+    margin-top: 2rem;
+    padding: 1rem 0 2rem;
+    border-top: 1px solid #2a2a1a;
+}
+
+.note-box.show-all-content .editable-content {
+    max-height: none !important;
+    overflow: hidden !important;
+}

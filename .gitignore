@@ -1,2 +1,3 @@
 gist
 *.sh
+!serve.sh
