@@ -352,6 +352,7 @@ function renderSharedSection(share) {
     }
     if (editable) html += `<div style="margin-top:2rem; padding-top:1rem; border-top:1px solid #2a2a1a; display:flex; gap:0.8rem; flex-wrap:wrap;"><button class="action-btn" data-onclick="addSharedNote(${share.id})"><i class="fas fa-plus"></i> Add note</button><button class="action-btn" data-onclick="addSharedList(${share.id})"><i class="fas fa-plus"></i> Add list</button><button class="action-btn" data-onclick="addSharedSubsection(${share.id})"><i class="fas fa-plus"></i> Add subsection</button></div>`;
     mainContainer.innerHTML = html + '</div>';
+    window.restoreSelectedBox?.();
     setTimeout(autoResizeTextareas, 10);
 }
 // Backward-compatible name used by the login flow.
@@ -973,14 +974,17 @@ function mutateSharedSubsection(shareId, subPath, mutation) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
     if (!share || !sub || !canEditSharedSection(share)) return;
+    const canvas = document.getElementById('canvas');
+    const scroll = { top: canvas?.scrollTop || 0, left: canvas?.scrollLeft || 0 };
     mutation(sub);
     saveSharedSection(share);
     render();
+    requestAnimationFrame(() => { const restored = document.getElementById('canvas'); if (restored) { restored.scrollTop = scroll.top; restored.scrollLeft = scroll.left; } window.restoreSelectedBox?.(); });
 }
-window.addSharedSubItem = function(shareId, subPath, listIndex) {
+window.addSharedSubItem = function(shareId, subPath, listIndex, afterIndex = null) {
     mutateSharedSubsection(shareId, subPath, sub => {
         const list = sub.items?.[listIndex];
-        if (list) (list.items || (list.items = [])).push({ text: 'New Item', done: false, rating: 0 });
+        if (list) { const items = list.items || (list.items = []); const newIndex = afterIndex === null ? items.length : afterIndex + 1; items.splice(newIndex, 0, { text: '', done: false, rating: 0 }); }
     });
 };
 window.deleteSharedSubItem = function(shareId, subPath, listIndex, itemIndex) {
@@ -1018,11 +1022,11 @@ renderSharedSection = function(share) {
     if (!notes.length && !lists.length) html += `<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>Subsection: ${esc(capitalize(sub.name))}<br><span style="font-size:.9rem;color:#7a7a5a">Add notes and lists below</span></p></div>`;
     html += '<div class="box-grid--responsive" id="sharedSubsectionGrid">';
     notes.forEach((note, noteIndex) => {
-        html += `<div class="note-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedSubNote(${share.id}, '${path}', ${noteIndex})" title="Delete note"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'note', ${noteIndex}, 0, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'note', ${noteIndex}, 0, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></div>`;
+        html += `<div class="note-box" data-type="sharedSubNote" data-share-id="${share.id}" data-sub-path="${path}" data-index="${noteIndex}">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedSubNote(${share.id}, '${path}', ${noteIndex})" title="Delete note"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'note', ${noteIndex}, 0, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'note', ${noteIndex}, 0, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></div>`;
     });
     lists.forEach((list, listIndex) => {
         const listLocation = renderLocationBadge(list.location);
-        html += `<div class="list-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedSubList(${share.id}, '${path}', ${listIndex})" title="Delete list"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'list', ${listIndex}, 0, 'title', this.value)">` : `<span>${esc(list.title || 'List')}</span>`}${listLocation}${editable ? `<span class="box-actions"><i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSharedSubLocation(${share.id}, '${path}', ${listIndex})" title="Add or edit location"></i><i class="fas fa-plus" data-onclick="addSharedSubItem(${share.id}, '${path}', ${listIndex})" title="Add item"></i></span>` : ''}</div><div class="list-items">`;
+        html += `<div class="list-box" data-type="sharedSubList" data-share-id="${share.id}" data-sub-path="${path}" data-index="${listIndex}">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedSubList(${share.id}, '${path}', ${listIndex})" title="Delete list"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" data-onchange="updateSharedSubsectionValue(${share.id}, '${path}', 'list', ${listIndex}, 0, 'title', this.value)">` : `<span>${esc(list.title || 'List')}</span>`}${listLocation}${editable ? `<span class="box-actions"><i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSharedSubLocation(${share.id}, '${path}', ${listIndex})" title="Add or edit location"></i><i class="fas fa-plus" data-onclick="addSharedSubItem(${share.id}, '${path}', ${listIndex})" title="Add item"></i></span>` : ''}</div><div class="list-items">`;
         (list.items || []).forEach((item, itemIndex) => {
             const icon = item.done ? 'fa-check-circle' : 'fa-circle';
             const itemLocation = renderLocationBadge(item.location, true);
@@ -1034,5 +1038,19 @@ renderSharedSection = function(share) {
     html += '</div>';
     if (editable) html += `<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #2a2a1a;display:flex;gap:.8rem;flex-wrap:wrap"><button class="action-btn" data-onclick="addSharedSubNote(${share.id}, '${path}')"><i class="fas fa-plus"></i> Add note</button><button class="action-btn" data-onclick="addSharedSubList(${share.id}, '${path}')"><i class="fas fa-plus"></i> Add list</button><button class="action-btn" data-onclick="addSharedSubsection(${share.id}, '${path}')"><i class="fas fa-plus"></i> Add nested subsection</button></div>`;
     mainContainer.innerHTML = html + '</div>';
+    window.restoreSelectedBox?.();
     setTimeout(autoResizeTextareas, 10);
+};
+
+// Shared sections use the same canvas renderer and keyboard interactions as personal
+// sections. The activeSharedEditor save bridge keeps the backing shared copy separate.
+window.selectSharedSection = function(shareId) {
+    window.openSharedFromSidebar(shareId);
+};
+window.openSharedSubsection = function(shareId, path) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share) return;
+    const subsectionPath = Array.isArray(path) ? path : String(path).split('/').filter(Boolean);
+    window.openSharedFromSidebar(shareId);
+    selectSubsection(share.section.id, subsectionPath);
 };

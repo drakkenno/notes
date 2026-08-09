@@ -21,7 +21,187 @@ document.addEventListener('submit', event => {
     const actions = { login: handleLogin, signup: handleSignup, 'change-password': handleChangePassword, 'delete-account': handleDeleteAccount };
     const action = actions[event.target.dataset.submitAction];
     if (action) { event.preventDefault(); action(); }
-});// CSP-safe delegated execution for legacy action metadata. No inline attribute is executable.
+});
+// Enter completes an item and starts the next one; Shift+Enter inserts a line break.
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || !event.target.matches('textarea.editable-item')) return;
+    event.preventDefault();
+    const input = event.target, box = input.closest('.list-box');
+    const itemIndex = Array.from(box.querySelectorAll('textarea.editable-item')).indexOf(input);
+    if (itemIndex < 0) return;
+    const isEmpty = input.value.trim() === '';
+    if (box.dataset.type === 'sharedSubList') {
+        if (isEmpty) input.blur();
+        else { updateSharedSubsectionValue(Number(box.dataset.shareId), box.dataset.subPath, 'item', Number(box.dataset.index), itemIndex, 'text', input.value); input.blur(); }
+    } else if (box.dataset.type === 'subList') {
+        if (isEmpty) input.blur();
+        else { updateSubItemInSub(box.dataset.subPath, Number(box.dataset.index), itemIndex, input.value); input.blur(); }
+    } else {
+        if (isEmpty) input.blur();
+        else { updateSubItem(Number(box.dataset.sectionId), Number(box.dataset.index), itemIndex, input.value); input.blur(); }
+    }
+});
+// A list or note card can be selected without putting a text field into edit mode.
+// Keep that selection after renders caused by edits, deletion, ratings, or adding items.
+window.selectedBoxKey = null;
+window.boxSelectionKey = box => [box.dataset.type || 'note', box.dataset.sectionId || '', box.dataset.subPath || '', box.dataset.index || ''].join('|');
+window.selectBox = box => {
+    if (!box) return;
+    window.itemSelection = [];
+    document.querySelectorAll('.sub-list-item.item-selected').forEach(item => item.classList.remove('item-selected'));
+    window.selectedBoxKey = window.boxSelectionKey(box);
+    document.querySelectorAll('.note-box.box-selected, .list-box.box-selected').forEach(item => item.classList.remove('box-selected'));
+    box.classList.add('box-selected');
+};
+window.restoreSelectedBox = () => {
+    if (!window.selectedBoxKey) return;
+    const box = Array.from(document.querySelectorAll('.note-box, .list-box')).find(item => window.boxSelectionKey(item) === window.selectedBoxKey);
+    if (box) box.classList.add('box-selected');
+    else window.selectedBoxKey = null;
+};
+document.addEventListener('click', event => {
+    const box = event.target.closest('.note-box, .list-box');
+    if (!box || event.target.closest('input, textarea, a, button, [data-onclick], .star-half')) return;
+    window.selectBox(box);
+});
+
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.shiftKey || event.target.matches('input, textarea')) return;
+    const box = document.querySelector('.list-box.box-selected');
+    if (!box) return;
+    event.preventDefault();
+    if (box.dataset.type === 'sharedSubList') addSharedSubItem(Number(box.dataset.shareId), box.dataset.subPath, Number(box.dataset.index));
+    else if (box.dataset.type === 'subList') addSubItemToSub(box.dataset.subPath, Number(box.dataset.index));
+    else addSubItem(Number(box.dataset.sectionId), Number(box.dataset.index));
+});
+// Copy and paste complete note/list cards between sections and subsections.
+window.cardClipboard = null;
+// Ctrl/Cmd-click selects item rows; Ctrl/Cmd+C and Ctrl/Cmd+V copy them between personal lists.
+window.itemSelection = [];
+window.itemClipboard = null;
+window.itemListFor = function(box) {
+    const section = sections.find(item => item.id === selectedSectionId);
+    if (!section || box.dataset.type === 'sharedSubList') return null;
+    const container = box.dataset.type === 'subList'
+        ? getSubsectionByPath(section, box.dataset.subPath.split('/').filter(Boolean))
+        : section;
+    return container?.items?.[Number(box.dataset.index)] || null;
+};
+document.addEventListener('click', event => {
+    const row = event.target.closest('.list-box .sub-list-item');
+    const box = row?.closest('.list-box');
+    if (!row || !box || event.target.closest('button, a, [data-onclick], .star-half')) return;
+    const index = Array.from(box.querySelectorAll('.sub-list-item')).indexOf(row);
+    const selectedIndex = window.itemSelection.findIndex(entry => entry.box === box && entry.index === index);
+    // First click selects the row; a second click on its text opens the editor.
+    if (event.target.closest('textarea.editable-item') && selectedIndex >= 0 && !(event.ctrlKey || event.metaKey)) return;
+    const selectedInAnotherCard = window.itemSelection.some(entry => entry.box !== box);
+    if (selectedInAnotherCard) {
+        window.itemSelection = [];
+        document.querySelectorAll('.sub-list-item.item-selected').forEach(item => item.classList.remove('item-selected'));
+    }
+    window.selectedBoxKey = null;
+    document.querySelectorAll('.note-box.box-selected, .list-box.box-selected').forEach(card => card.classList.remove('box-selected'));
+    if (!(event.ctrlKey || event.metaKey)) {
+        document.activeElement?.blur();
+        event.preventDefault();
+        event.stopPropagation();
+        document.querySelectorAll('.sub-list-item.item-selected').forEach(item => item.classList.remove('item-selected'));
+        window.itemSelection = [{ box, index }];
+        row.classList.add('item-selected');
+        return;
+    }
+    document.activeElement?.blur();
+    event.preventDefault();
+    event.stopPropagation();
+    if (selectedIndex >= 0) {
+        window.itemSelection.splice(selectedIndex, 1);
+        row.classList.remove('item-selected');
+    } else {
+        window.itemSelection.push({ box, index });
+        row.classList.add('item-selected');
+    }
+}, true);
+document.addEventListener('keydown', event => {
+    const key = event.key.toLowerCase();
+    if (key === 'backspace' && window.itemSelection.length && !event.target.matches('input, textarea')) {
+        const groups = new Map();
+        window.itemSelection.forEach(({ box, index }) => {
+            const list = window.itemListFor(box);
+            if (!list?.items) return;
+            const indexes = groups.get(list) || [];
+            indexes.push(index);
+            groups.set(list, indexes);
+        });
+        let deleted = 0;
+        groups.forEach((indexes, list) => {
+            [...new Set(indexes)].sort((a, b) => b - a).forEach(index => {
+                if (index >= 0 && index < list.items.length) { list.items.splice(index, 1); deleted++; }
+            });
+        });
+        if (!deleted) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.itemSelection = [];
+        render();
+        showSaveIndicator(`${deleted} item${deleted === 1 ? '' : 's'} deleted`);
+    } else if (!(event.ctrlKey || event.metaKey) || event.target.matches('input, textarea')) {
+        return;
+    } else if (key === 'c' && window.itemSelection.length) {
+        const copies = window.itemSelection.map(({ box, index }) => window.itemListFor(box)?.items?.[index]).filter(Boolean).map(item => JSON.parse(JSON.stringify(item)));
+        if (!copies.length) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        window.itemClipboard = copies;
+        showSaveIndicator(`${copies.length} item${copies.length === 1 ? '' : 's'} copied`);
+    } else if (key === 'v' && window.itemClipboard?.length) {
+        const destination = window.itemListFor(document.querySelector('.list-box.box-selected'));
+        if (!destination) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        destination.items = destination.items || [];
+        destination.items.push(...window.itemClipboard.map(item => JSON.parse(JSON.stringify(item))));
+        window.itemSelection = [];
+        render();
+        showSaveIndicator(`${window.itemClipboard.length} item${window.itemClipboard.length === 1 ? '' : 's'} pasted`);
+    }
+});
+document.addEventListener('keydown', event => {
+    if (!(event.ctrlKey || event.metaKey) || event.target.matches('input, textarea')) return;
+    const key = event.key.toLowerCase();
+    if (key === 'c') {
+        const box = document.querySelector('.note-box.box-selected, .list-box.box-selected');
+        if (!box) return;
+        const section = sections.find(item => item.id === selectedSectionId);
+        const isSub = box.dataset.type === 'subNote' || box.dataset.type === 'subList';
+        const container = isSub ? getSubsectionByPath(section, box.dataset.subPath.split('/').filter(Boolean)) : section;
+        const collection = box.classList.contains('note-box') ? container?.notes : container?.items;
+        const source = collection?.[Number(box.dataset.index)];
+        if (!source) return;
+        event.preventDefault();
+        window.cardClipboard = { kind: box.classList.contains('note-box') ? 'note' : 'list', value: JSON.parse(JSON.stringify(source)) };
+        showSaveIndicator('Card copied');
+    }
+    if (key === 'v' && window.cardClipboard) {
+        const section = sections.find(item => item.id === selectedSectionId);
+        if (!section) return;
+        event.preventDefault();
+        const isSub = selectedSubsectionPath.length > 0;
+        const container = isSub ? getSubsectionByPath(section, selectedSubsectionPath) : section;
+        if (!container) return;
+        const field = window.cardClipboard.kind === 'note' ? 'notes' : 'items';
+        const copies = container[field] || (container[field] = []);
+        const copy = JSON.parse(JSON.stringify(window.cardClipboard.value));
+        copy.x = (copy.x || 10) + 20; copy.y = (copy.y || 10) + 20;
+        const index = copies.push(copy) - 1;
+        window.selectedBoxKey = isSub
+            ? `${window.cardClipboard.kind === 'note' ? 'subNote' : 'subList'}||${selectedSubsectionPath.join('/')}|${index}`
+            : `${window.cardClipboard.kind}|${section.id}||${index}`;
+        render();
+        showSaveIndicator('Card pasted');
+    }
+});
+// CSP-safe delegated execution for legacy action metadata. No inline attribute is executable.
 (function () {
   const splitArgs = source => { const out=[]; let value='', quote='', depth=0; for (let i=0;i<source.length;i++){const c=source[i]; if(quote){value+=c;if(c===quote&&source[i-1]!=='\\')quote='';continue;} if(c==='"'||c==="'"){quote=c;value+=c;continue;} if(c==='('||c==='['||c==='{')depth++; if(c===')'||c===']'||c==='}')depth--; if(c===','&&depth===0){out.push(value.trim());value='';}else value+=c;} if(value.trim())out.push(value.trim()); return out; };
   const argument = (value, element, event) => { value=value.trim(); if(value==='this.value') return element.value; if(value==='event') return event; if(/^[-+]?\d+(\.\d+)?$/.test(value)) return Number(value); if(value==='true'||value==='false') return value==='true'; if((value.startsWith("'")&&value.endsWith("'"))||(value.startsWith('"')&&value.endsWith('"'))) return value.slice(1,-1).replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\\\/g,'\\'); return value; };

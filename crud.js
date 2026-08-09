@@ -197,20 +197,18 @@ window.deleteList = function(sectionId, listIndex) {
 //  CRUD OPERATIONS - SECTION LIST ITEMS
 // ============================================================
 
-window.addSubItem = function(sectionId, listIndex) {
+window.addSubItem = function(sectionId, listIndex, afterIndex = null) {
     const sec = sections.find(s => s.id === sectionId);
     if (!sec) return;
     const list = sec.items[listIndex];
     if (!list) return;
     if (!list.items) list.items = [];
-    list.items.push({ text: 'New Item', done: false, rating: 0 });
+    const newIndex = afterIndex === null ? list.items.length : afterIndex + 1;
+    list.items.splice(newIndex, 0, { text: '', done: false, rating: 0 });
     render();
     setTimeout(() => {
-        const itemInputs = document.querySelectorAll('.list-box .editable-item');
-        if (itemInputs.length > 0) {
-            itemInputs[itemInputs.length - 1].focus();
-            itemInputs[itemInputs.length - 1].select();
-        }
+        const newItem = document.querySelector('.list-box.box-selected')?.querySelectorAll('.editable-item')[newIndex];
+        newItem?.focus();
     }, 50);
 };
 
@@ -311,7 +309,7 @@ window.deleteSubList = function(subPath, listIndex) {
 //  CRUD OPERATIONS - SUBSECTION LIST ITEMS
 // ============================================================
 
-window.addSubItemToSub = function(subPath, listIndex) {
+window.addSubItemToSub = function(subPath, listIndex, afterIndex = null) {
     const sec = sections.find(s => s.id === selectedSectionId);
     if (!sec) return;
     const pathArray = subPath.split('/');
@@ -320,14 +318,12 @@ window.addSubItemToSub = function(subPath, listIndex) {
     const list = sub.items[listIndex];
     if (!list) return;
     if (!list.items) list.items = [];
-    list.items.push({ text: 'New Item', done: false, rating: 0 });
+    const newIndex = afterIndex === null ? list.items.length : afterIndex + 1;
+    list.items.splice(newIndex, 0, { text: '', done: false, rating: 0 });
     render();
     setTimeout(() => {
-        const itemInputs = document.querySelectorAll('.list-box .editable-item');
-        if (itemInputs.length > 0) {
-            itemInputs[itemInputs.length - 1].focus();
-            itemInputs[itemInputs.length - 1].select();
-        }
+        const newItem = document.querySelector('.list-box.box-selected')?.querySelectorAll('.editable-item')[newIndex];
+        newItem?.focus();
     }, 50);
 };
 

@@ -3,10 +3,19 @@
 // ============================================================
 
 function render() {
+    const canvas = document.getElementById('canvas');
+    const scrollState = { pageX: window.scrollX, pageY: window.scrollY, canvasLeft: canvas?.scrollLeft || 0, canvasTop: canvas?.scrollTop || 0, lists: Array.from(document.querySelectorAll('.list-box[id] .list-items')).map(items => ({ id: items.closest('.list-box').id, top: items.scrollTop })) };
     renderSidebar();
     if (isSharedSectionsView) { renderSharedSections(); return; }
     renderMain();
+    window.restoreSelectedBox?.();
     saveLocalData();
+    requestAnimationFrame(() => {
+        window.scrollTo(scrollState.pageX, scrollState.pageY);
+        const restoredCanvas = document.getElementById('canvas');
+        if (restoredCanvas) { restoredCanvas.scrollLeft = scrollState.canvasLeft; restoredCanvas.scrollTop = scrollState.canvasTop; }
+        scrollState.lists.forEach(({ id, top }) => { const items = document.getElementById(id)?.querySelector('.list-items'); if (items) items.scrollTop = top; });
+    });
     // Auto-sync removed - use Push button to sync manually
 }
 
@@ -529,10 +538,8 @@ function updateSubItem(sectionId, listIndex, subIndex, newValue) {
     if (!list) return;
     const item = list.items[subIndex];
     if (!item) return;
-    if (newValue && newValue.trim() !== '') {
-        item.text = newValue.trim();
-        render();
-    }
+    item.text = newValue;
+    saveLocalData();
 }
 
 // ============================================================
@@ -589,10 +596,8 @@ function updateSubItemInSub(subPath, listIndex, subIndex, newValue) {
     if (!list) return;
     const item = list.items[subIndex];
     if (!item) return;
-    if (newValue && newValue.trim() !== '') {
-        item.text = newValue.trim();
-        render();
-    }
+    item.text = newValue;
+    saveLocalData();
 }
 
 // ============================================================
