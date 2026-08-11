@@ -639,7 +639,7 @@ renderSidebar = function() {
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
             const isChevron = event.target.closest('i') === title.querySelector('i');
-            if (isChevron) togglePersonalSection(id); else selectSection(id);
+            if (isChevron || window.matchMedia('(max-width: 700px)').matches) togglePersonalSection(id); else selectSection(id);
         });
     });
 };

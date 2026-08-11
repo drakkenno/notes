@@ -60,6 +60,8 @@
         <i class="fas fa-check-circle"></i> Saved
     </div>
 
+    <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-content">
             <div class="status-panel" id="statusPanel">
@@ -84,6 +86,12 @@
         <div id="mainSectionsContainer"></div>
     </main>
 
+    <nav class="mobile-dock" aria-label="Quick actions">
+        <button class="mobile-dock-btn" id="mobileMenuBtn" type="button" aria-label="Open notes menu"><i class="fas fa-bars"></i><span>Library</span></button>
+        <button class="mobile-add-btn" id="mobileAddSectionBtn" type="button" aria-label="Create a new section"><i class="fas fa-plus"></i><span>New section</span></button>
+        <button class="mobile-dock-btn" id="mobileOrganizeBtn" type="button" aria-label="Organize cards"><i class="fas fa-th-large"></i><span>Organize</span></button>
+    </nav>
+
     <script src="config.js"></script>
     <script src="auth.js"></script>
     <script src="app.js"></script>
@@ -95,11 +103,18 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+        const toggleBtn = document.getElementById('toggleSidebarBtn');
+        function setSidebarOpen(isOpen) {
+            sidebar?.classList.toggle('hidden', !isOpen);
+            sidebarBackdrop?.classList.toggle('visible', isOpen);
+            toggleBtn?.setAttribute('aria-expanded', String(isOpen));
+            if (toggleBtn) toggleBtn.innerHTML = isOpen ? '<i class="fas fa-bars"></i> <span>Notes</span>' : '<i class="fas fa-chevron-right"></i> <span>Notes</span>';
+        }
+
         if (window.matchMedia('(max-width: 700px)').matches) {
-            const sidebar = document.getElementById('sidebar');
-            const toggleBtn = document.getElementById('toggleSidebarBtn');
-            sidebar.classList.add('hidden');
-            if (toggleBtn) { toggleBtn.setAttribute('aria-expanded', 'false'); toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i> <span>Notes</span>'; }
+            setSidebarOpen(false);
         }
         initAuth();
         initSyncButtons();
@@ -131,28 +146,23 @@
             });
         }
 
-        const toggleBtn = document.getElementById('toggleSidebarBtn');
         if (toggleBtn) {
             toggleBtn.addEventListener('click', function() {
-                const sidebar = document.getElementById('sidebar');
-                sidebar.classList.toggle('hidden');
-                this.innerHTML = sidebar.classList.contains('hidden') ?
-                    '<i class="fas fa-chevron-right"></i> <span>Notes</span>' :
-                    '<i class="fas fa-bars"></i> <span>Notes</span>';
+                setSidebarOpen(sidebar?.classList.contains('hidden'));
+
             });
         }
 
         const closeBtn = document.getElementById('sidebarCloseBtn');
         if (closeBtn) {
             closeBtn.addEventListener('click', function() {
-                const sidebar = document.getElementById('sidebar');
-                sidebar.classList.add('hidden');
-                const toggleBtn = document.getElementById('toggleSidebarBtn');
-                if (toggleBtn) {
-                    toggleBtn.innerHTML = '<i class="fas fa-chevron-right"></i> <span>Notes</span>';
-                }
+                setSidebarOpen(false);
             });
         }
+        sidebarBackdrop?.addEventListener('click', function() { setSidebarOpen(false); });
+        document.getElementById('mobileMenuBtn')?.addEventListener('click', function() { document.getElementById('toggleSidebarBtn')?.click(); });
+        document.getElementById('mobileAddSectionBtn')?.addEventListener('click', function() { window.addSectionFromMain?.(); });
+        document.getElementById('mobileOrganizeBtn')?.addEventListener('click', function() { if (typeof isSharedSectionsView !== 'undefined' && isSharedSectionsView) { selectedSharedSubsectionPath?.length ? window.organizeSharedSubsectionCanvas?.() : window.organizeSharedCanvas?.(); } else { window.organizeCanvas?.(); } });
     });
 
     window.addSectionFromMain = function() {
@@ -179,4 +189,4 @@
     </script>
 
 </body>
-</html>
+</html>

@@ -276,7 +276,7 @@ function renderSharedSections() {
     const selectedShare = sharedSections.find(share => share.id == selectedSharedSectionId);
     if (selectedShare) return renderSharedSection(selectedShare);
 
-    let html = '<div class="canvas"><div class="canvas-header"><div class="title-section"><i class="fas fa-share-alt"></i><h1>Shared Sections</h1></div><button class="back-btn" data-onclick="isSharedSectionsView=false; render()"><i class="fas fa-arrow-left"></i> Back</button></div>';
+    let html = '<div class="canvas"><div class="canvas-header"><div class="title-section"><i class="fas fa-share-alt"></i><h1>Shared Sections</h1></div><div style="display:flex;gap:.6rem;align-items:center"><button class="back-btn" data-onclick="organizeSharedCanvas()"><i class="fas fa-th-large"></i> Organize</button><button class="back-btn" data-onclick="isSharedSectionsView=false; render()"><i class="fas fa-arrow-left"></i> Back</button></div></div>';
     if (!sharedSections.length) {
         html += '<div class="empty-state-hero"><i class="fas fa-share-alt"></i><p>No sections have been shared with you.</p></div>';
     } else {
@@ -478,7 +478,7 @@ renderSharedSection = function(share) {
     if (!sub) { selectedSharedSubsectionPath = []; return renderSharedSectionWithSubsectionSupport(share); }
     const editable = canEditSharedSection(share), path = escJs(selectedSharedSubsectionPath.join('/'));
     const hasContent = (sub.notes || []).length || (sub.items || []).length || (sub.subs || []).length;
-    let html = '<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i><h1>' + esc(capitalize(sub.name)) + '</h1></div><button class="back-btn" data-onclick="closeSharedSubsection()"><i class="fas fa-arrow-left"></i> Back</button></div>';
+    let html = '<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i><h1>' + esc(capitalize(sub.name)) + '</h1></div><div style="display:flex;gap:.6rem;align-items:center"><button class="back-btn" data-onclick="organizeSharedSubsectionCanvas()"><i class="fas fa-th-large"></i> Organize</button><button class="back-btn" data-onclick="closeSharedSubsection()"><i class="fas fa-arrow-left"></i> Back</button></div></div>';
     if (!hasContent) html += '<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>Subsection: ' + esc(capitalize(sub.name)) + '<br><span style="font-size:0.9rem;color:#7a7a5a">Add notes and lists below</span></p></div>';
     html += '<div class="box-grid--responsive" id="sharedSubsectionGrid">';
     (sub.notes || []).forEach(note => { html += '<article class="note-box"><div class="box-title"><i class="fas fa-pen-fancy"></i><span>' + esc(note.title || 'Note') + '</span></div><div class="note-content"><div class="shared-readonly-content">' + esc(note.content || '') + '</div></div></article>'; });
@@ -1063,4 +1063,32 @@ window.openSharedSubsection = function(shareId, path) {
     selectedSubsectionPath = [];
     isSharedSectionsView = true;
     render();
+};
+
+window.organizeSharedCanvas = function() {
+    const grid = document.getElementById('sharedBoxGrid'), canvas = document.getElementById('canvas');
+    if (!grid || !canvas) return;
+    const cards = Array.from(grid.querySelectorAll('.shared-canvas-card'));
+    if (!cards.length) return;
+    const styles = getComputedStyle(canvas), available = canvas.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+    const gap = 24, width = Math.max(200, Math.min(360, Math.floor((available - gap) / Math.max(1, Math.floor((available + gap) / 344)))));
+    let x = 0, y = 0, rowHeight = 0;
+    cards.forEach(card => {
+        if (x && x + width > available) { x = 0; y += rowHeight + gap; rowHeight = 0; }
+        const share = sharedSections.find(item => item.id === Number(card.dataset.onclick?.match(/\((\d+)/)?.[1]));
+        if (share && canEditSharedSection(share)) { share.section.x = x; share.section.y = y; share.section.width = width; }
+        card.style.left = `${x}px`; card.style.top = `${y}px`; card.style.width = `${width}px`;
+        rowHeight = Math.max(rowHeight, card.offsetHeight); x += width + gap;
+    });
+    grid.style.minHeight = `${y + rowHeight + gap}px`;
+    sharedSections.filter(canEditSharedSection).forEach(saveSharedSection);
+    canvas.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
+    showSaveIndicator(`${cards.length} shared card${cards.length === 1 ? '' : 's'} organized`);
+};
+
+window.organizeSharedSubsectionCanvas = function() {
+    const grid = document.getElementById('sharedSubsectionGrid');
+    if (!grid) return;
+    grid.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    showSaveIndicator('This subsection is already arranged for easy reading');
 };

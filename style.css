@@ -1146,3 +1146,43 @@ body {
     max-height: none !important;
     overflow: hidden !important;
 }
+
+/* Mobile-first app shell */
+@media (max-width: 700px) {
+    body { min-height: 100dvh; background: radial-gradient(circle at 80% 0%, #1c1b10 0, #0b0b0b 38%); }
+    .sidebar { padding-bottom: max(5.8rem, env(safe-area-inset-bottom)); }
+    .sidebar-toggle-wrapper button { backdrop-filter: blur(14px); background: rgba(20,20,20,.86); }
+    .canvas { padding: max(1rem, env(safe-area-inset-top)) 1rem calc(6.8rem + env(safe-area-inset-bottom)); scroll-padding-bottom: 7rem; }
+    .canvas-header { margin-top: 3.35rem; padding: .85rem .1rem 1rem; gap: .75rem; }
+    .canvas-header .badge { font-size: .72rem; padding: .35rem .7rem; }
+    .canvas-header .back-btn { min-height: 40px; padding: .45rem .8rem; }
+    .box-grid { display: grid; grid-template-columns: 1fr; gap: .85rem; min-height: unset; padding-bottom: 1rem; }
+    .box-grid .note-box, .box-grid .list-box { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: auto !important; min-height: unset; overflow: visible; }
+    .box-grid .drag-handle, .box-grid .resize-handle { display: none !important; }
+    .box-grid .note-box { box-shadow: 0 7px 24px rgba(0,0,0,.34); }
+    .note-box .box-title, .list-box .box-title { min-height: 38px; }
+    .box-delete-btn { opacity: 1; width: 34px; height: 34px; }
+    .save-indicator { right: 1rem; bottom: calc(5.8rem + env(safe-area-inset-bottom)); }
+    .mobile-dock { position: fixed; z-index: 35; left: max(.75rem, env(safe-area-inset-left)); right: max(.75rem, env(safe-area-inset-right)); bottom: max(.65rem, env(safe-area-inset-bottom)); height: 62px; display: grid; grid-template-columns: 1fr 1.35fr 1fr; align-items: center; gap: .35rem; padding: .35rem; border: 1px solid rgba(245,229,107,.18); border-radius: 22px; background: rgba(22,22,18,.9); box-shadow: 0 12px 35px rgba(0,0,0,.55); backdrop-filter: blur(18px); }
+    .mobile-dock button { border: 0; min-height: 52px; border-radius: 17px; color: #d4c45a; background: transparent; font: inherit; font-size: .69rem; font-weight: 650; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .18rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .mobile-dock button i { font-size: 1rem; }
+    .mobile-dock .mobile-add-btn { flex-direction: row; gap: .45rem; color: #171710; background: #f5e56b; box-shadow: 0 4px 15px rgba(245,229,107,.2); font-size: .77rem; }
+    .mobile-dock button:active { transform: scale(.96); }
+}
+@media (min-width: 701px) { .mobile-dock { display: none; } }
+
+/* Phone sidebar drawer backdrop */
+.sidebar-backdrop { display: none; }
+@media (max-width: 700px) {
+    .sidebar-backdrop { position: fixed; inset: 0; z-index: 39; display: block; opacity: 0; pointer-events: none; background: rgba(0, 0, 0, .58); backdrop-filter: blur(2px); transition: opacity .22s ease; }
+    .sidebar-backdrop.visible { opacity: 1; pointer-events: auto; }
+    .sidebar-close-btn { top: max(.75rem, env(safe-area-inset-top)); right: .75rem; width: 44px; height: 44px; border: 1px solid #4a4a35; border-radius: 50%; background: #25251a; color: #f5e56b; font-size: 1rem; }
+    .sidebar-close-btn:active { background: #3a3a25; }
+}
+
+/* On phones, the complete section row expands/collapses. */
+@media (max-width: 700px) {
+    .section-group > .section-title { min-height: 52px; padding-top: .7rem; padding-bottom: .7rem; }
+    .section-group > .section-title > span:first-child { display: flex; align-items: center; min-width: 0; }
+    .section-group > .section-title > span:first-child > i:first-child { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-right: .45rem !important; border-radius: 9px; background: #28281d; color: #f5e56b; }
+}
