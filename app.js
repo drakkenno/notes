@@ -616,14 +616,25 @@ renderSidebar = function() {
     if (!groups.length) return;
     const sharedGroup = groups[0];
     const sharedTitles = Array.from(sharedGroup.querySelectorAll(':scope > .section-title'));
-    sharedTitles.forEach((title, index) => {
+    sharedTitles.forEach(title => {
+        const originalAction = title.getAttribute('data-onclick') || '';
+        const shareMatch = originalAction.match(/toggleSharedSource\((\d+)\)/);
+        const isSharedRoot = originalAction.includes('toggleSharedSidebar');
         title.removeAttribute('data-onclick');
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
-            const isChevron = event.target.closest('i') === title.querySelector('i');
             const phone = window.matchMedia('(max-width: 700px)').matches;
-            if (index === 0) { if (isChevron || phone) toggleSharedSidebar(); else showSharedSections(); }
-            else { const share = sharedSections[index - 1]; if (!share) return; if (isChevron || phone) toggleSharedSource(share.id); else { activeSharedEditorId = null; isSharedSectionsView = true; selectedSharedSectionId = share.id; selectedSharedSubsectionPath = []; selectedSectionId = null; selectedSubsectionPath = []; render(); } }
+            const isChevron = event.target.closest('i') === title.querySelector('i');
+            if (isSharedRoot) {
+                if (isChevron || phone) toggleSharedSidebar(); else showSharedSections();
+                return;
+            }
+            const shareId = Number(shareMatch?.[1]);
+            const share = sharedSections.find(item => item.id === shareId);
+            if (!share) return;
+            if (isChevron || phone) { toggleSharedSource(shareId); return; }
+            activeSharedEditorId = null; isSharedSectionsView = true; selectedSharedSectionId = shareId;
+            selectedSharedSubsectionPath = []; selectedSectionId = null; selectedSubsectionPath = []; render();
         });
     });
     sidebarContainer.querySelectorAll('.section-group[data-section-id]').forEach(group => {
