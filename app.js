@@ -621,8 +621,9 @@ renderSidebar = function() {
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
             const isChevron = event.target.closest('i') === title.querySelector('i');
-            if (index === 0) { if (isChevron) toggleSharedSidebar(); else showSharedSections(); }
-            else { const share = sharedSections[index - 1]; if (!share) return; if (isChevron) toggleSharedSource(share.id); else { activeSharedEditorId = null; isSharedSectionsView = true; selectedSharedSectionId = share.id; selectedSharedSubsectionPath = []; selectedSectionId = null; selectedSubsectionPath = []; render(); } }
+            const phone = window.matchMedia('(max-width: 700px)').matches;
+            if (index === 0) { if (isChevron || phone) toggleSharedSidebar(); else showSharedSections(); }
+            else { const share = sharedSections[index - 1]; if (!share) return; if (isChevron || phone) toggleSharedSource(share.id); else { activeSharedEditorId = null; isSharedSectionsView = true; selectedSharedSectionId = share.id; selectedSharedSubsectionPath = []; selectedSectionId = null; selectedSubsectionPath = []; render(); } }
         });
     });
     sidebarContainer.querySelectorAll('.section-group[data-section-id]').forEach(group => {
