@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="icons/icon-192.svg" />
     <title>Notes</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-    <link rel="stylesheet" href="style.css?v=phone-ui-5" />
+    <link rel="stylesheet" href="style.css?v=context-organize-13" />
 </head>
 <body>
     <div class="login-overlay visible" id="loginOverlay">
@@ -86,18 +86,16 @@
         <div id="mainSectionsContainer"></div>
     </main>
 
-    <nav class="mobile-dock" aria-label="Quick actions">
-        <button class="mobile-dock-btn" id="mobileMenuBtn" type="button" aria-label="Open notes menu"><i class="fas fa-bars"></i><span>Library</span></button>
-        <button class="mobile-add-btn" id="mobileAddSectionBtn" type="button" aria-label="Create a new section"><i class="fas fa-plus"></i><span>New section</span></button>
-        <button class="mobile-dock-btn" id="mobileOrganizeBtn" type="button" aria-label="Organize cards"><i class="fas fa-th-large"></i><span>Organize</span></button>
+    <nav class="mobile-dock mobile-dock--organize-only" id="mobileOrganizeDock" aria-label="Canvas actions">
+        <button class="mobile-organize-btn" id="mobileOrganizeBtn" type="button" aria-label="Organize cards"><i class="fas fa-th-large"></i><span>Organize</span></button>
     </nav>
 
     <script src="config.js"></script>
     <script src="auth.js"></script>
-    <script src="app.js"></script>
-    <script src="ui.js?v=subsection-responsive-1"></script>
+    <script src="app.js?v=unified-navigation-3"></script>
+    <script src="ui.js?v=all-organize-7"></script>
     <script src="crud.js"></script>
-    <script src="shared.js"></script>
+    <script src="shared.js?v=aligned-headers-5"></script>
     <script src="events.js"></script>
     <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Offline support could not be enabled:', error))); }</script>
 
@@ -106,16 +104,27 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarBackdrop = document.getElementById('sidebarBackdrop');
         const toggleBtn = document.getElementById('toggleSidebarBtn');
+        const mobileOrganizeDock = document.getElementById('mobileOrganizeDock');
+        const phoneSidebarMedia = window.matchMedia('(max-width: 700px)');
+        function updateMobileOrganizeVisibility() {
+            const sharedSectionOpen = typeof isSharedSectionsView !== 'undefined' && isSharedSectionsView && typeof selectedSharedSectionId !== 'undefined' && selectedSharedSectionId !== null;
+            const personalSectionOpen = (typeof isSharedSectionsView === 'undefined' || !isSharedSectionsView) && typeof selectedSectionId !== 'undefined' && selectedSectionId !== null;
+            const sidebarOpen = !sidebar?.classList.contains('hidden');
+            mobileOrganizeDock?.classList.toggle('is-visible', phoneSidebarMedia.matches && (sharedSectionOpen || personalSectionOpen) && !sidebarOpen);
+        }
         function setSidebarOpen(isOpen) {
-            sidebar?.classList.toggle('hidden', !isOpen);
-            sidebarBackdrop?.classList.toggle('visible', isOpen);
-            toggleBtn?.setAttribute('aria-expanded', String(isOpen));
-            if (toggleBtn) toggleBtn.innerHTML = isOpen ? '<i class="fas fa-bars"></i> <span>Notes</span>' : '<i class="fas fa-chevron-right"></i> <span>Notes</span>';
+            queueMicrotask(updateMobileOrganizeVisibility);
+            const open = phoneSidebarMedia.matches ? isOpen : true;
+            sidebar?.classList.toggle('hidden', !open);
+            sidebarBackdrop?.classList.toggle('visible', phoneSidebarMedia.matches && open);
+            sidebarBackdrop?.setAttribute('aria-hidden', String(!phoneSidebarMedia.matches || !open));
+            toggleBtn?.setAttribute('aria-expanded', String(open));
+            if (toggleBtn) toggleBtn.innerHTML = open ? '<i class="fas fa-bars"></i> <span>Notes</span>' : '<i class="fas fa-chevron-right"></i> <span>Notes</span>';
         }
 
-        if (window.matchMedia('(max-width: 700px)').matches) {
-            setSidebarOpen(false);
-        }
+        setSidebarOpen(!phoneSidebarMedia.matches);
+        phoneSidebarMedia.addEventListener?.('change', event => setSidebarOpen(!event.matches));
+        new MutationObserver(updateMobileOrganizeVisibility).observe(document.getElementById('mainSectionsContainer'), { childList: true, subtree: true });
         initAuth();
         initSyncButtons();
         const addBtn = document.getElementById('addSectionBtn');
@@ -160,9 +169,22 @@
             });
         }
         sidebarBackdrop?.addEventListener('click', function() { setSidebarOpen(false); });
-        document.getElementById('mobileMenuBtn')?.addEventListener('click', function() { document.getElementById('toggleSidebarBtn')?.click(); });
-        document.getElementById('mobileAddSectionBtn')?.addEventListener('click', function() { window.addSectionFromMain?.(); });
-        document.getElementById('mobileOrganizeBtn')?.addEventListener('click', function() { if (typeof isSharedSectionsView !== 'undefined' && isSharedSectionsView) { selectedSharedSubsectionPath?.length ? window.organizeSharedSubsectionCanvas?.() : window.organizeSharedCanvas?.(); } else { window.organizeCanvas?.(); } });
+        document.addEventListener('pointerdown', function(event) {
+            if (!phoneSidebarMedia.matches || sidebar?.classList.contains('hidden')) return;
+            if (sidebar?.contains(event.target) || toggleBtn?.contains(event.target) || event.target.closest('.mobile-dock')) return;
+            setSidebarOpen(false);
+        });
+        document.getElementById('mobileOrganizeBtn')?.addEventListener('click', function() {
+            if (typeof isSharedSectionsView !== 'undefined' && isSharedSectionsView) {
+                if (selectedSharedSubsectionPath?.length) window.organizeSharedSubsectionCanvas?.();
+                else if (selectedSharedSectionId !== null) window.organizeSharedSectionCanvas?.();
+                else window.organizeSharedCanvas?.();
+            } else if (typeof selectedSubsectionPath !== 'undefined' && selectedSubsectionPath.length) {
+                window.organizePersonalSubsectionCanvas?.();
+            } else {
+                window.organizeCanvas?.();
+            }
+        });
     });
 
     window.addSectionFromMain = function() {

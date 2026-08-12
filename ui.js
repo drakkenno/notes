@@ -126,20 +126,31 @@ function renderMain() {
             } else {
                 displayName = capitalize(sec.name);
             }
-            html += `<div class="title-section personal-title-section">
+            html += `<div class="canvas-header-primary">
+                    <div class="title-section personal-title-section">
                         <i class="fas fa-folder-open" style="color:#f5e56b; font-size:1.5rem;"></i>
-                        <input class="editable-title personal-section-title" value="${esc(displayName)}" 
+                        <input class="editable-title personal-section-title" value="${esc(displayName)}"
                                data-onchange="updateSectionTitle(${sec.id}, this.value)"
                                onfocus="this.select()"
                                style="font-size:1.8rem; font-weight:600; background:transparent; border:none; color:#f5e56b; outline:none; border-bottom:2px solid transparent; min-width:100px;">
-                        <button class="edit-title-btn" data-onclick="document.querySelector('.canvas-header .editable-title').focus()" style="background:transparent; border:none; color:#7a7a5a; cursor:pointer; font-size:0.8rem;">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        ${selectedSubsectionPath.length > 0 ? `<span class="subsection-label" style="color: #7a7a5a; font-size: 0.9rem; margin-left: 0.5rem;">(subsection)</span>` : ''}
-                        ${selectedSubsectionPath.length > 0 ? `<button class="delete-subsection-btn" data-onclick="deleteCurrentSubsection()" style="background:transparent; border:none; color:#ff6b6b; cursor:pointer; font-size:0.9rem; margin-left: 0.5rem;" title="Delete subsection"><i class="fas fa-trash-alt"></i></button>` : ''}
                     </div>
                     <div class="canvas-header-actions" style="display: flex; gap: 0.8rem; align-items: center;">
+                        ${selectedSubsectionPath.length > 0
+                            ? `<button class="back-btn canvas-action-btn" data-onclick="addSubNote('${escJs(selectedSubsectionPath.join('/'))}')"><i class="fas fa-plus"></i> Add note</button>
+                               <button class="back-btn canvas-action-btn" data-onclick="addSubList('${escJs(selectedSubsectionPath.join('/'))}')"><i class="fas fa-plus"></i> Add list</button>
+                               <button class="back-btn canvas-action-btn" data-onclick="addSubsection(${sec.id}, '${escJs(selectedSubsectionPath.join('/'))}')"><i class="fas fa-plus"></i> Add subsection</button>
+                               <button class="back-btn canvas-action-btn desktop-organize-btn" data-onclick="organizePersonalSubsectionCanvas()"><i class="fas fa-th-large"></i> Organize</button>`
+                            : `<button class="back-btn canvas-action-btn" data-onclick="addNoteToSection(${sec.id})"><i class="fas fa-plus"></i> Add note</button>
+                               <button class="back-btn canvas-action-btn" data-onclick="addListToSection(${sec.id})"><i class="fas fa-plus"></i> Add list</button>
+                               <button class="back-btn canvas-action-btn" data-onclick="addSubsection(${sec.id})"><i class="fas fa-plus"></i> Add subsection</button>
+                               <button class="back-btn canvas-action-btn desktop-organize-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>`}
                         <button class="back-btn" data-onclick="clearSelection()"><i class="fas fa-arrow-left"></i> Back</button>
+                    </div>
+                    </div>
+                    <div class="canvas-header-meta">
+                        <button class="edit-title-btn" data-onclick="document.querySelector('.canvas-header .editable-title').focus()" title="Edit title"><i class="fas fa-edit"></i></button>
+                        ${selectedSubsectionPath.length > 0 ? `<span class="subsection-label">(subsection)</span>` : ''}
+                        ${selectedSubsectionPath.length > 0 ? `<button class="delete-subsection-btn" data-onclick="deleteCurrentSubsection()" title="Delete subsection"><i class="fas fa-trash-alt"></i></button>` : ''}
                         <span class="badge" id="syncStatus"><i class="fas fa-database"></i> <span id="syncLabel">local</span></span>
                     </div>`;
         }
@@ -148,7 +159,10 @@ function renderMain() {
                     <i class="fas fa-sticky-note" style="color:#f5e56b; font-size:1.5rem;"></i>
                     <h1>Notes & Lists</h1>
                 </div>
-                <span class="badge" id="syncStatus"><i class="fas fa-database"></i> <span id="syncLabel">local</span></span>`;
+                <div class="canvas-header-actions" style="display:flex;gap:.8rem;align-items:center;">
+                    <button class="back-btn canvas-action-btn desktop-organize-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>
+                    <span class="badge" id="syncStatus"><i class="fas fa-database"></i> <span id="syncLabel">local</span></span>
+                </div>`;
     }
     html += `</div>`;
     
@@ -170,9 +184,9 @@ function renderMain() {
                 const width = sec.width || 280 + (index % 3) * 40;
                 const height = sec.height || 180 + (index % 4) * 30;
                 html += `
-                    <div class="note-box" id="box-${sec.id}" 
-                         style="cursor: default; position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;"
-                         data-section-id="${sec.id}">
+                    <div class="note-box section-canvas-card" id="box-${sec.id}"
+                         style="cursor:pointer; position:absolute; left:${x}px; top:${y}px; width:${width}px; height:${height}px; min-width:200px; min-height:120px;"
+                         data-section-id="${sec.id}" data-onclick="selectSection(${sec.id})">
                         <button class="box-delete-btn" data-onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"><i class="fas fa-times"></i></button>
                         <div class="box-title">
                             <span class="drag-handle" data-onclick="event.stopPropagation();"><i class="fas fa-grip-lines"></i></span>
@@ -335,13 +349,7 @@ function renderMain() {
             html += `</div>`;
             
             const subPathStr = selectedSubsectionPath.join('/');
-            html += `
-                <div class='canvas-actions'>
-                    <button class="action-btn" data-onclick="addSubNote('${subPathStr}')"><i class="fas fa-plus"></i> Add note</button>
-                    <button class="action-btn" data-onclick="addSubList('${subPathStr}')"><i class="fas fa-plus"></i> Add list</button>
-                    <button class="action-btn" data-onclick="addSubsection(${sec.id}, '${subPathStr}')"><i class="fas fa-plus"></i> Add nested subsection</button>
-                </div>
-            `;
+
             setTimeout(autoResizeTextareas, 10);
         } else {
             // Show parent section content
@@ -466,14 +474,7 @@ function renderMain() {
                 html += `</div>`;
             }
             
-            html += `
-                <div class='canvas-actions'>
-                    <button class="action-btn" data-onclick="addNoteToSection(${sec.id})"><i class="fas fa-plus"></i> Add note</button>
-                    <button class="action-btn" data-onclick="addListToSection(${sec.id})"><i class="fas fa-plus"></i> Add list</button>
-                    <button class="action-btn" data-onclick="addSubsection(${sec.id})"><i class="fas fa-plus"></i> Add subsection</button>
-                    <button class="action-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>
-                </div>
-            `;
+
             
             setTimeout(() => {
                 makeDraggable();
@@ -491,7 +492,8 @@ function renderMain() {
         const responsiveSubsection = grid?.classList.contains('personal-subsection-grid');
         if (!responsiveSubsection) {
             autoFitDefaultListBoxes();
-            updateCanvasExtent();
+            if (personalCanvasNeedsRepair(grid)) organizeCanvas({ silent: true });
+            else updateCanvasExtent();
         }
     }, 10);
 }
@@ -637,10 +639,31 @@ function getBoxData(box) {
     return { box, type, sectionId, subPath, index, item };
 }
 
+function isPhonePersonalCanvas() {
+    return window.matchMedia('(max-width: 700px)').matches;
+}
+
+function personalCanvasNeedsRepair(grid) {
+    if (!grid || isPhonePersonalCanvas()) return false;
+    const boxes = Array.from(grid.children).filter(element => element.matches('.note-box, .list-box'));
+    return boxes.some((box, index) => boxes.slice(index + 1).some(other =>
+        box.offsetLeft < other.offsetLeft + other.offsetWidth &&
+        box.offsetLeft + box.offsetWidth > other.offsetLeft &&
+        box.offsetTop < other.offsetTop + other.offsetHeight &&
+        box.offsetTop + box.offsetHeight > other.offsetTop
+    ));
+}
+
 function updateCanvasExtent() {
     const grid = document.getElementById('boxGrid');
     const canvas = document.getElementById('canvas');
     if (!grid || !canvas) return;
+
+    if (isPhonePersonalCanvas()) {
+        grid.style.removeProperty('width');
+        grid.style.removeProperty('height');
+        return;
+    }
 
     const boxes = Array.from(grid.children).filter(element => element.matches('.note-box, .list-box'));
     const furthestRight = boxes.reduce((edge, box) => Math.max(edge, box.offsetLeft + box.offsetWidth), 0);
@@ -697,20 +720,36 @@ function autoFitDefaultListBoxes() {
     });
 }
 
-window.organizeCanvas = function() {
+window.organizePersonalSubsectionCanvas = function() {
+    const grid = document.querySelector('.personal-subsection-grid');
+    if (!grid) return;
+    grid.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    showSaveIndicator('Subsection cards are organized');
+};
+
+window.organizeCanvas = function(options = {}) {
     const grid = document.getElementById('boxGrid');
     const canvas = document.getElementById('canvas');
     if (!grid || !canvas) return;
     const boxes = Array.from(grid.children).filter(element => element.matches('.note-box, .list-box'));
     if (!boxes.length) return;
 
-    grid.style.width = '';
+    const silent = options?.silent === true;
+    if (isPhonePersonalCanvas()) {
+        grid.style.removeProperty('width');
+        grid.style.removeProperty('height');
+        canvas.scrollTo({ left: 0, top: 0, behavior: silent ? 'auto' : 'smooth' });
+        if (!silent) showSaveIndicator(`${boxes.length} card${boxes.length === 1 ? '' : 's'} adjusted`);
+        return;
+    }
+
     const canvasStyles = getComputedStyle(canvas);
     const availableWidth = canvas.clientWidth - parseFloat(canvasStyles.paddingLeft) - parseFloat(canvasStyles.paddingRight);
     const gap = 24;
-    const usableWidth = Math.max(200, availableWidth - 80);
-    const columnCount = Math.max(1, Math.floor((usableWidth + gap) / (320 + gap)));
+    const usableWidth = Math.max(200, availableWidth);
+    const columnCount = Math.min(boxes.length, Math.max(1, Math.floor((usableWidth + gap) / (280 + gap))));
     const boxWidth = Math.max(200, Math.min(360, Math.floor((usableWidth - gap * (columnCount - 1)) / columnCount)));
+    grid.style.width = `${usableWidth}px`;
 
     boxes.forEach(box => {
         const data = getBoxData(box);
@@ -743,7 +782,7 @@ window.organizeCanvas = function() {
     updateCanvasExtent();
     canvas.scrollTo({ left: 0, top: 0, behavior: 'smooth' });
     saveLocalData();
-    showSaveIndicator(`${boxes.length} card${boxes.length === 1 ? '' : 's'} organized`);
+    if (!silent) showSaveIndicator(`${boxes.length} card${boxes.length === 1 ? '' : 's'} organized`);
 };
 
 function makeDraggable() {

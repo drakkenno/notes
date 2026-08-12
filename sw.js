@@ -1,5 +1,5 @@
-const CACHE_NAME = 'notes-shell-v24';
-const APP_SHELL = ['./', './index.html', './style.css?v=phone-ui-5', './config.js', './auth.js', './app.js', './ui.js?v=subsection-responsive-1', './crud.js', './shared.js', './events.js', './manifest.webmanifest', './icons/icon-192.svg', './icons/icon-512.svg'];
+const CACHE_NAME = 'notes-shell-v36';
+const APP_SHELL = ['./', './index.html', './style.css?v=header-layout-9', './config.js', './auth.js', './app.js?v=unified-navigation-3', './ui.js?v=header-layout-6', './crud.js', './shared.js?v=separate-data-4', './events.js', './manifest.webmanifest', './icons/icon-192.svg', './icons/icon-512.svg'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting())));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key)))).then(() => self.clients.claim())));
 self.addEventListener('fetch', event => {

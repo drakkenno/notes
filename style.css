@@ -315,6 +315,15 @@ body {
     flex-wrap: wrap;
     gap: 0.5rem;
 }
+.canvas.has-selection .canvas-header {
+    position: sticky;
+    top: 0;
+    z-index: 12;
+    padding-top: 0.8rem;
+    background: rgba(17, 17, 17, 0.94);
+    backdrop-filter: blur(14px);
+}
+
 .canvas-header .title-section {
     display: flex;
     align-items: center;
@@ -1002,6 +1011,8 @@ body {
 }
 .login-overlay{position:fixed;inset:0;z-index:1000;display:none;place-items:center;background:rgba(0,0,0,.82);padding:1rem}.login-overlay.visible{display:grid}.login-overlay.hidden{display:none}.auth-card{width:min(100%,420px);padding:2rem;border:1px solid #f5e56b;border-radius:14px;background:#161610;color:#f5e56b;box-shadow:0 20px 60px #000}.auth-card h1,.auth-card h2{margin:0 0 1rem}.auth-subtitle{color:#b8a84a;margin:0 0 1rem}.auth-card form{display:grid;gap:.75rem}.auth-card input{padding:.75rem;border:1px solid #777;border-radius:6px;background:#0b0b0b;color:#fff}.auth-btn,.auth-link{padding:.7rem;border-radius:6px;cursor:pointer}.auth-btn{border:0;background:#f5e56b;color:#111;font-weight:700}.auth-btn.danger{background:#c94343;color:#fff}.auth-link{border:0;background:transparent;color:#f5e56b}.auth-message{display:none;margin:.75rem 0;padding:.6rem;border-radius:6px}.auth-error{background:#542020;color:#ffd4d4}.auth-success{background:#1f4d2a;color:#d7ffe0}.user-actions{display:flex;align-items:center;gap:.35rem;margin-bottom:.7rem;font-size:.78rem}.user-action-btn{background:transparent;color:#f5e56b;border:0;cursor:pointer;padding:.3rem}.admin-user-row{display:flex;gap:.5rem;align-items:center;justify-content:space-between;border-top:1px solid #383820;padding:.6rem 0}.admin-delete-btn{border:0;border-radius:4px;background:#c94343;color:#fff;padding:.3rem .5rem;cursor:pointer}
 
+.shared-editor-context { white-space: nowrap; }
+
 .shared-access-badge {
     display: inline-flex;
     align-items: center;
@@ -1155,8 +1166,10 @@ body {
     .sidebar-toggle-wrapper button { backdrop-filter: blur(14px); background: rgba(20,20,20,.86); }
     .canvas { max-width: 100%; overflow-x: hidden; padding: max(1rem, env(safe-area-inset-top)) 1rem calc(6.8rem + env(safe-area-inset-bottom)); scroll-padding-bottom: 7rem; }
     .canvas-header { margin-top: 3.35rem; padding: .85rem .1rem 1rem; gap: .75rem; }
+    .canvas.has-selection .canvas-header { top: 3.25rem; }
     .canvas-header .personal-title-section { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; gap: .5rem; }
     .canvas-header .personal-section-title { width: 100%; max-width: 100%; min-width: 0 !important; }
+    .canvas-header .personal-title-section .shared-editor-context { grid-column: 1 / -1; width: fit-content; max-width: 100%; white-space: normal; }
     .canvas-header .personal-title-section .edit-title-btn,
     .canvas-header .personal-title-section .delete-subsection-btn { flex: 0 0 auto; min-width: 32px; min-height: 32px; margin-left: 0 !important; }
     .canvas-header .personal-title-section .subsection-label { min-width: 0; margin-left: 0 !important; white-space: nowrap; }
@@ -1170,13 +1183,14 @@ body {
     .note-box .box-title, .list-box .box-title { min-height: 38px; }
     .box-delete-btn { opacity: 1; width: 34px; height: 34px; }
     .save-indicator { right: 1rem; bottom: calc(5.8rem + env(safe-area-inset-bottom)); }
-    .mobile-dock { position: fixed; z-index: 35; left: max(.75rem, env(safe-area-inset-left)); right: max(.75rem, env(safe-area-inset-right)); bottom: max(.65rem, env(safe-area-inset-bottom)); height: 62px; display: grid; grid-template-columns: 1fr 1.35fr 1fr; align-items: center; gap: .35rem; padding: .35rem; border: 1px solid rgba(245,229,107,.18); border-radius: 22px; background: rgba(22,22,18,.9); box-shadow: 0 12px 35px rgba(0,0,0,.55); backdrop-filter: blur(18px); }
+    .mobile-dock { position: fixed; z-index: 45; left: max(.75rem, env(safe-area-inset-left)); right: max(.75rem, env(safe-area-inset-right)); bottom: max(.65rem, env(safe-area-inset-bottom)); height: 62px; display: grid; grid-template-columns: 1fr 1.35fr 1fr; align-items: center; gap: .35rem; padding: .35rem; border: 1px solid rgba(245,229,107,.18); border-radius: 22px; background: rgba(22,22,18,.9); box-shadow: 0 12px 35px rgba(0,0,0,.55); backdrop-filter: blur(18px); }
     .mobile-dock button { border: 0; min-height: 52px; border-radius: 17px; color: #d4c45a; background: transparent; font: inherit; font-size: .69rem; font-weight: 650; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .18rem; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .mobile-dock button i { font-size: 1rem; }
     .mobile-dock .mobile-add-btn { flex-direction: row; gap: .45rem; color: #171710; background: #f5e56b; box-shadow: 0 4px 15px rgba(245,229,107,.2); font-size: .77rem; }
     .mobile-dock button:active { transform: scale(.96); }
 }
 @media (min-width: 701px) { .mobile-dock { display: none; } }
+@media (max-width: 700px) { .desktop-organize-btn { display: none; } }
 
 /* Phone sidebar drawer backdrop */
 .sidebar-backdrop { display: none; }
@@ -1192,4 +1206,132 @@ body {
     .section-group > .section-title { min-height: 52px; padding-top: .7rem; padding-bottom: .7rem; }
     .section-group > .section-title > span:first-child { display: flex; align-items: center; min-width: 0; }
     .section-group > .section-title > span:first-child > i:first-child { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-right: .45rem !important; border-radius: 9px; background: #28281d; color: #f5e56b; }
+}
+
+/* Compact selected-canvas header: title/actions left, metadata right. */
+.canvas.has-selection .canvas-header {
+    align-items: flex-start;
+}
+.canvas-header-primary {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+}
+.canvas-header-primary .personal-title-section,
+.canvas-header-primary > .title-section {
+    flex: 0 1 auto;
+    min-width: 0;
+    width: auto;
+}
+.canvas-header-primary .canvas-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.45rem !important;
+    flex-wrap: wrap;
+}
+.canvas-header-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.65rem;
+    margin-left: auto;
+    min-height: 34px;
+    flex-wrap: wrap;
+}
+.canvas-header-meta .edit-title-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #7a7a5a;
+    cursor: pointer;
+}
+.canvas-header-meta .edit-title-btn:hover {
+    color: #f5e56b;
+    background: #1a1a12;
+}
+.canvas-header-meta .subsection-label {
+    color: #7a7a5a;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+.canvas-header-meta .delete-subsection-btn {
+    margin-left: 0 !important;
+}
+@media (max-width: 700px) {
+    .canvas.has-selection .canvas-header {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .canvas-header-meta {
+        order: -1;
+        width: 100%;
+        margin-left: 0;
+        justify-content: flex-end;
+    }
+    .canvas-header-primary {
+        width: 100%;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.6rem;
+    }
+    .canvas-header-primary .personal-title-section,
+.canvas-header-primary > .title-section {
+        display: flex;
+        width: 100%;
+        max-width: 100%;
+        gap: 0.5rem;
+    }
+    .canvas-header-primary .canvas-header-actions {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+}
+
+/* Desktop keeps the library sidebar permanently visible. */
+@media (min-width: 701px) {
+    .sidebar.hidden {
+        transform: none;
+        margin-right: 0;
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .sidebar-close-btn { display: none; }
+}
+
+/* Phone dock: one clear, full-width Organize action. */
+@media (max-width: 700px) {
+    .mobile-dock--organize-only {
+        grid-template-columns: minmax(0, 1fr);
+        height: 70px;
+        padding: 0.4rem;
+    }
+    .mobile-dock--organize-only .mobile-organize-btn {
+        width: 100%;
+        min-height: 58px;
+        flex-direction: row;
+        gap: 0.65rem;
+        border-radius: 18px;
+        background: #f5e56b;
+        color: #171710;
+        font-size: 0.9rem;
+        font-weight: 700;
+        box-shadow: 0 4px 15px rgba(245,229,107,.2);
+    }
+    .mobile-dock--organize-only .mobile-organize-btn i { font-size: 1.1rem; }
+}
+/* The phone Organize bar is contextual and stays behind an open sidebar. */
+@media (max-width: 700px) {
+    .mobile-dock--organize-only { display: none; }
+    .mobile-dock--organize-only.is-visible { display: grid; }
 }

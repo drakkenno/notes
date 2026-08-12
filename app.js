@@ -608,7 +608,7 @@ function renderSidebar() {
     });
     sidebarContainer.innerHTML = html;
 }
-// Make the section name open its content. Only its chevron expands the subtree.
+// The chevron expands/collapses the tree; the rest of the row expands it and opens its canvas.
 const renderSidebarWithClickTargets = renderSidebar;
 renderSidebar = function() {
     renderSidebarWithClickTargets();
@@ -623,18 +623,18 @@ renderSidebar = function() {
         title.removeAttribute('data-onclick');
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
-            const phone = window.matchMedia('(max-width: 700px)').matches;
             const isChevron = event.target.closest('i') === title.querySelector('i');
             if (isSharedRoot) {
-                if (isChevron || phone) toggleSharedSidebar(); else showSharedSections();
+                if (isChevron) toggleSharedSidebar();
+                else { sharedSidebarExpanded = true; showSharedSections(); }
                 return;
             }
             const shareId = Number(shareMatch?.[1]);
             const share = sharedSections.find(item => item.id === shareId);
             if (!share) return;
-            if (isChevron || phone) { toggleSharedSource(shareId); return; }
-            activeSharedEditorId = null; isSharedSectionsView = true; selectedSharedSectionId = shareId;
-            selectedSharedSubsectionPath = []; selectedSectionId = null; selectedSubsectionPath = []; render();
+            if (isChevron) { toggleSharedSource(shareId); return; }
+            expandedSharedSections.add(shareId);
+            openSharedFromSidebar(shareId);
         });
     });
     sidebarContainer.querySelectorAll('.section-group[data-section-id]').forEach(group => {
@@ -651,7 +651,8 @@ renderSidebar = function() {
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
             const isChevron = event.target.closest('i') === title.querySelector('i');
-            if (isChevron || window.matchMedia('(max-width: 700px)').matches) togglePersonalSection(id); else selectSection(id);
+            if (isChevron) togglePersonalSection(id);
+            else { expandedPersonalSections.add(id); selectSection(id); }
         });
     });
 };

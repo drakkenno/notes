@@ -562,8 +562,8 @@ render = function() {
     mainContainer.classList.toggle('shared-editor-readonly', !editable);
     if (!editable) {
         mainContainer.querySelectorAll('input, textarea').forEach(field => { field.readOnly = true; field.disabled = false; });
-        mainContainer.querySelectorAll('.box-delete-btn, .delete-subsection-btn, .edit-title-btn, .box-actions, .action-btn').forEach(control => { if (!control.classList.contains('back-btn')) control.style.display = 'none'; });
-        mainContainer.querySelectorAll('[data-onclick]').forEach(control => { if (!control.classList.contains('back-btn')) control.removeAttribute('data-onclick'); });
+        mainContainer.querySelectorAll('.box-delete-btn, .delete-subsection-btn, .edit-title-btn, .box-actions, .action-btn, .canvas-action-btn, .add-item-btn, .drag-handle, .resize-handle, .item-delete').forEach(control => { if (!control.classList.contains('back-btn') || control.classList.contains('canvas-action-btn')) control.style.display = 'none'; });
+        mainContainer.querySelectorAll('[data-onclick]').forEach(control => { if (!control.classList.contains('back-btn') || control.classList.contains('canvas-action-btn')) control.removeAttribute('data-onclick'); });
     } else {
         const snapshot = JSON.stringify(share.section);
         if (snapshot !== sharedEditorLastSnapshot) {
@@ -1018,7 +1018,7 @@ renderSharedSection = function(share) {
     const path = escJs(selectedSharedSubsectionPath.join('/'));
     const notes = sub.notes || [];
     const lists = sub.items || [];
-    let html = `<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i><h1>${esc(capitalize(sub.name))}</h1><span style="color:#7a7a5a;font-size:.9rem;margin-left:.5rem">(subsection)</span></div><button class="back-btn" data-onclick="closeSharedSubsection()"><i class="fas fa-arrow-left"></i> Back</button></div>`;
+    let html = `<div class="canvas has-selection"><div class="canvas-header"><div class="title-section"><i class="fas fa-folder-open" style="color:#f5e56b;font-size:1.5rem"></i><h1>${esc(capitalize(sub.name))}</h1><span class="subsection-label">(subsection)</span></div><button class="back-btn" data-onclick="closeSharedSubsection()"><i class="fas fa-arrow-left"></i> Back</button></div>`;
     if (!notes.length && !lists.length) html += `<div class="empty-state-hero"><i class="fas fa-folder-open"></i><p>Subsection: ${esc(capitalize(sub.name))}<br><span style="font-size:.9rem;color:#7a7a5a">Add notes and lists below</span></p></div>`;
     html += '<div class="box-grid--responsive" id="sharedSubsectionGrid">';
     notes.forEach((note, noteIndex) => {
@@ -1091,4 +1091,88 @@ window.organizeSharedSubsectionCanvas = function() {
     if (!grid) return;
     grid.scrollIntoView({ block: 'start', behavior: 'smooth' });
     showSaveIndicator('This subsection is already arranged for easy reading');
+};
+// Align the separate shared renderer with the personal canvas header.
+// This layer only moves rendered controls; shared and personal data remain independent.
+window.organizeSharedSectionCanvas = function() {
+    const grid = mainContainer.querySelector('.box-grid--responsive');
+    if (!grid) return;
+    grid.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    showSaveIndicator('Shared section cards are organized');
+};
+
+function alignSeparateSharedCanvasHeader() {
+    const canvas = mainContainer.querySelector('.canvas');
+    const header = canvas?.querySelector(':scope > .canvas-header');
+    const title = header?.querySelector(':scope > .title-section');
+    if (!canvas || !header || !title || header.querySelector(':scope > .canvas-header-primary')) return;
+
+    const selected = selectedSharedSectionId !== null;
+    const subsection = selectedSharedSubsectionPath.length > 0;
+    const share = sharedSections.find(item => item.id == selectedSharedSectionId);
+    const editable = !!share && canEditSharedSection(share);
+
+    const primary = document.createElement('div');
+    primary.className = 'canvas-header-primary';
+    const actions = document.createElement('div');
+    actions.className = 'canvas-header-actions';
+    const meta = document.createElement('div');
+    meta.className = 'canvas-header-meta';
+
+    primary.appendChild(title);
+    primary.appendChild(actions);
+    header.prepend(primary);
+    header.appendChild(meta);
+
+    const movedParents = new Set();
+    if (selected && editable) {
+        const selectors = subsection
+            ? [`[data-onclick^="addSharedSubNote(${share.id}"]`, `[data-onclick^="addSharedSubList(${share.id}"]`, `[data-onclick^="addSharedSubsection(${share.id}"]`]
+            : [`[data-onclick^="addSharedNote(${share.id}"]`, `[data-onclick^="addSharedList(${share.id}"]`, `[data-onclick^="addSharedSubsection(${share.id}"]`];
+        selectors.forEach(selector => {
+            const button = canvas.querySelector(selector);
+            if (!button || button.closest('.box-actions, .shared-card-actions')) return;
+            movedParents.add(button.parentElement);
+            button.classList.remove('action-btn');
+            button.classList.add('back-btn', 'canvas-action-btn');
+            actions.appendChild(button);
+        });
+    }
+
+    const organize = document.createElement('button');
+    organize.className = 'back-btn canvas-action-btn desktop-organize-btn';
+    organize.innerHTML = '<i class="fas fa-th-large"></i> Organize';
+    organize.setAttribute('data-onclick', !selected ? 'organizeSharedCanvas()' : subsection ? 'organizeSharedSubsectionCanvas()' : 'organizeSharedSectionCanvas()');
+    actions.appendChild(organize);
+
+    const back = header.querySelector(':scope > .back-btn');
+    if (back) actions.appendChild(back);
+
+    title.querySelectorAll(':scope > .shared-access-badge, :scope > .shared-from-label, :scope > .subsection-label').forEach(item => meta.appendChild(item));
+
+    if (selected && title.querySelector('.editable-title')) {
+        const edit = document.createElement('button');
+        edit.className = 'edit-title-btn';
+        edit.title = 'Edit title';
+        edit.innerHTML = '<i class="fas fa-edit"></i>';
+        edit.setAttribute('data-onclick', "document.querySelector('.canvas-header .editable-title').focus()");
+        meta.prepend(edit);
+    }
+    if (subsection && share && isSharedOwner(share)) {
+        const remove = document.createElement('button');
+        remove.className = 'delete-subsection-btn';
+        remove.title = 'Delete subsection';
+        remove.innerHTML = '<i class="fas fa-trash-alt"></i>';
+        remove.setAttribute('data-onclick', `deleteSharedSubsection(${share.id}, '${escJs(selectedSharedSubsectionPath.join('/'))}')`);
+        meta.appendChild(remove);
+    }
+
+    header.querySelectorAll(':scope > .action-btn, :scope > .manage-sharing-btn, :scope > .delete-shared-section-btn, :scope > .stop-sharing-btn').forEach(button => meta.appendChild(button));
+    movedParents.forEach(parent => { if (parent && parent !== actions && !parent.children.length) parent.remove(); });
+}
+
+const renderSharedSectionsBeforeAlignedHeaders = renderSharedSections;
+renderSharedSections = function() {
+    renderSharedSectionsBeforeAlignedHeaders();
+    alignSeparateSharedCanvasHeader();
 };
