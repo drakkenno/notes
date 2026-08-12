@@ -1150,14 +1150,15 @@ body {
 /* Mobile-first app shell */
 @media (max-width: 700px) {
     body { min-height: 100dvh; background: radial-gradient(circle at 80% 0%, #1c1b10 0, #0b0b0b 38%); }
+    .main { min-width: 0; }
     .sidebar { padding-bottom: max(5.8rem, env(safe-area-inset-bottom)); }
     .sidebar-toggle-wrapper button { backdrop-filter: blur(14px); background: rgba(20,20,20,.86); }
     .canvas { padding: max(1rem, env(safe-area-inset-top)) 1rem calc(6.8rem + env(safe-area-inset-bottom)); scroll-padding-bottom: 7rem; }
     .canvas-header { margin-top: 3.35rem; padding: .85rem .1rem 1rem; gap: .75rem; }
     .canvas-header .badge { font-size: .72rem; padding: .35rem .7rem; }
     .canvas-header .back-btn { min-height: 40px; padding: .45rem .8rem; }
-    .box-grid { display: grid; grid-template-columns: 1fr; gap: .85rem; min-height: unset; padding-bottom: 1rem; }
-    .box-grid .note-box, .box-grid .list-box { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; height: auto !important; min-height: unset; overflow: visible; }
+    .box-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; min-width: 0; min-height: unset; padding-bottom: 1rem; }
+    .box-grid .note-box, .box-grid .list-box { position: relative !important; left: auto !important; top: auto !important; width: 100% !important; max-width: 100%; height: auto !important; min-width: 0; min-height: unset; overflow: visible; }
     .box-grid .drag-handle, .box-grid .resize-handle { display: none !important; }
     .box-grid .note-box { box-shadow: 0 7px 24px rgba(0,0,0,.34); }
     .note-box .box-title, .list-box .box-title { min-height: 38px; }
