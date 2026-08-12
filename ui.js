@@ -126,19 +126,19 @@ function renderMain() {
             } else {
                 displayName = capitalize(sec.name);
             }
-            html += `<div class="title-section">
+            html += `<div class="title-section personal-title-section">
                         <i class="fas fa-folder-open" style="color:#f5e56b; font-size:1.5rem;"></i>
-                        <input class="editable-title" value="${esc(displayName)}" 
+                        <input class="editable-title personal-section-title" value="${esc(displayName)}" 
                                data-onchange="updateSectionTitle(${sec.id}, this.value)"
                                onfocus="this.select()"
                                style="font-size:1.8rem; font-weight:600; background:transparent; border:none; color:#f5e56b; outline:none; border-bottom:2px solid transparent; min-width:100px;">
                         <button class="edit-title-btn" data-onclick="document.querySelector('.canvas-header .editable-title').focus()" style="background:transparent; border:none; color:#7a7a5a; cursor:pointer; font-size:0.8rem;">
                             <i class="fas fa-edit"></i>
                         </button>
-                        ${selectedSubsectionPath.length > 0 ? `<span style="color: #7a7a5a; font-size: 0.9rem; margin-left: 0.5rem;">(subsection)</span>` : ''}
+                        ${selectedSubsectionPath.length > 0 ? `<span class="subsection-label" style="color: #7a7a5a; font-size: 0.9rem; margin-left: 0.5rem;">(subsection)</span>` : ''}
                         ${selectedSubsectionPath.length > 0 ? `<button class="delete-subsection-btn" data-onclick="deleteCurrentSubsection()" style="background:transparent; border:none; color:#ff6b6b; cursor:pointer; font-size:0.9rem; margin-left: 0.5rem;" title="Delete subsection"><i class="fas fa-trash-alt"></i></button>` : ''}
                     </div>
-                    <div style="display: flex; gap: 0.8rem; align-items: center;">
+                    <div class="canvas-header-actions" style="display: flex; gap: 0.8rem; align-items: center;">
                         <button class="back-btn" data-onclick="clearSelection()"><i class="fas fa-arrow-left"></i> Back</button>
                         <span class="badge" id="syncStatus"><i class="fas fa-database"></i> <span id="syncLabel">local</span></span>
                     </div>`;

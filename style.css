@@ -1153,8 +1153,14 @@ body {
     .main { min-width: 0; }
     .sidebar { padding-bottom: max(5.8rem, env(safe-area-inset-bottom)); }
     .sidebar-toggle-wrapper button { backdrop-filter: blur(14px); background: rgba(20,20,20,.86); }
-    .canvas { padding: max(1rem, env(safe-area-inset-top)) 1rem calc(6.8rem + env(safe-area-inset-bottom)); scroll-padding-bottom: 7rem; }
+    .canvas { max-width: 100%; overflow-x: hidden; padding: max(1rem, env(safe-area-inset-top)) 1rem calc(6.8rem + env(safe-area-inset-bottom)); scroll-padding-bottom: 7rem; }
     .canvas-header { margin-top: 3.35rem; padding: .85rem .1rem 1rem; gap: .75rem; }
+    .canvas-header .personal-title-section { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto auto; flex: 1 1 100%; width: 100%; max-width: 100%; min-width: 0; gap: .5rem; }
+    .canvas-header .personal-section-title { width: 100%; max-width: 100%; min-width: 0 !important; }
+    .canvas-header .personal-title-section .edit-title-btn,
+    .canvas-header .personal-title-section .delete-subsection-btn { flex: 0 0 auto; min-width: 32px; min-height: 32px; margin-left: 0 !important; }
+    .canvas-header .personal-title-section .subsection-label { min-width: 0; margin-left: 0 !important; white-space: nowrap; }
+    .canvas-header .canvas-header-actions { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; }
     .canvas-header .badge { font-size: .72rem; padding: .35rem .7rem; }
     .canvas-header .back-btn { min-height: 40px; padding: .45rem .8rem; }
     .box-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: .85rem; min-width: 0; min-height: unset; padding-bottom: 1rem; }
