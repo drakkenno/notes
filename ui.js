@@ -229,7 +229,7 @@ function renderMain() {
                         </div>`;
             }
             
-            html += `<div class="box-grid" id="boxGrid">`;
+            html += `<div class="box-grid--responsive personal-subsection-grid" id="boxGrid">`;
             
             // Subsection notes
             if (hasSubNotes) {
@@ -340,14 +340,9 @@ function renderMain() {
                     <button class="action-btn" data-onclick="addSubNote('${subPathStr}')"><i class="fas fa-plus"></i> Add note</button>
                     <button class="action-btn" data-onclick="addSubList('${subPathStr}')"><i class="fas fa-plus"></i> Add list</button>
                     <button class="action-btn" data-onclick="addSubsection(${sec.id}, '${subPathStr}')"><i class="fas fa-plus"></i> Add nested subsection</button>
-                    <button class="action-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>
                 </div>
             `;
-            
-            setTimeout(() => {
-                makeDraggable();
-                makeResizable();
-            }, 50);
+            setTimeout(autoResizeTextareas, 10);
         } else {
             // Show parent section content
             html += `<div class="box-grid" id="boxGrid">`;
@@ -492,8 +487,12 @@ function renderMain() {
     // Size every item textarea to its content
     setTimeout(() => {
         autoResizeTextareas();
-        autoFitDefaultListBoxes();
-        updateCanvasExtent();
+        const grid = document.getElementById('boxGrid');
+        const responsiveSubsection = grid?.classList.contains('personal-subsection-grid');
+        if (!responsiveSubsection) {
+            autoFitDefaultListBoxes();
+            updateCanvasExtent();
+        }
     }, 10);
 }
 
