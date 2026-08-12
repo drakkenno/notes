@@ -608,7 +608,7 @@ function renderSidebar() {
     });
     sidebarContainer.innerHTML = html;
 }
-// The chevron expands/collapses the tree; the rest of the row expands it and opens its canvas.
+// The chevron toggles only the tree; the rest of the row toggles the tree and opens its canvas.
 const renderSidebarWithClickTargets = renderSidebar;
 renderSidebar = function() {
     renderSidebarWithClickTargets();
@@ -626,14 +626,14 @@ renderSidebar = function() {
             const isChevron = event.target.closest('i') === title.querySelector('i');
             if (isSharedRoot) {
                 if (isChevron) toggleSharedSidebar();
-                else { sharedSidebarExpanded = true; showSharedSections(); }
+                else { sharedSidebarExpanded = !sharedSidebarExpanded; showSharedSections(); }
                 return;
             }
             const shareId = Number(shareMatch?.[1]);
             const share = sharedSections.find(item => item.id === shareId);
             if (!share) return;
             if (isChevron) { toggleSharedSource(shareId); return; }
-            expandedSharedSections.add(shareId);
+            expandedSharedSections.has(shareId) ? expandedSharedSections.delete(shareId) : expandedSharedSections.add(shareId);
             openSharedFromSidebar(shareId);
         });
     });
@@ -652,7 +652,10 @@ renderSidebar = function() {
             if (event.target.closest('.section-actions')) return;
             const isChevron = event.target.closest('i') === title.querySelector('i');
             if (isChevron) togglePersonalSection(id);
-            else { expandedPersonalSections.add(id); selectSection(id); }
+            else {
+                expandedPersonalSections.has(id) ? expandedPersonalSections.delete(id) : expandedPersonalSections.add(id);
+                selectSection(id);
+            }
         });
     });
 };
