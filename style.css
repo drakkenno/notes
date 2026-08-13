@@ -1335,3 +1335,32 @@ body {
     .mobile-dock--organize-only { display: none; }
     .mobile-dock--organize-only.is-visible { display: grid; }
 }
+/* Active typing state */
+.canvas .note-box:focus-within,
+.canvas .list-box:focus-within {
+    z-index: 16;
+    border-color: #6f6a32;
+    box-shadow: 0 14px 38px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(245, 229, 107, 0.2);
+}
+
+.mobile-organize-btn.typing-confirm-btn {
+    display: inline-flex !important;
+    background: #f5e56b;
+    border-color: #f5e56b;
+    color: #111;
+    font-weight: 700;
+    box-shadow: 0 5px 18px rgba(245, 229, 107, 0.22);
+}
+
+.mobile-organize-btn.typing-confirm-btn:hover,
+.mobile-organize-btn.typing-confirm-btn:focus-visible {
+    background: #fff19a;
+    border-color: #fff19a;
+    color: #111;
+    outline: 2px solid rgba(245, 229, 107, 0.28);
+    outline-offset: 2px;
+}
+
+@media (max-width: 700px) {
+    .mobile-dock--organize-only.typing-active { display: grid; }
+}

@@ -268,7 +268,7 @@ function renderMain() {
                             </div>
                             <div class="note-content">
                                 <textarea class="editable-content" 
-                                          data-onchange="updateSubNoteContent('${subPathStr}', ${ni}, this.value)"
+                                          data-oninput="updateSubNoteContent('${subPathStr}', ${ni}, this.value)"
                                           style="background:transparent; border:none; color:#d4c45a; font-size:0.95rem; line-height:1.6; outline:none; width:100%; min-height:30px; max-height:200px; font-family:inherit; resize:vertical; padding:0.2rem; border-radius:4px;">${esc(note.content || '')}</textarea>
                             </div>
                             <div class="resize-handle" data-onclick="event.stopPropagation();">
@@ -321,7 +321,7 @@ function renderMain() {
                                 <div class="sub-list-item">
                                     <i class="fas ${icon}" style="color:${color};" data-onclick="toggleSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx})" title="Toggle done"></i>
                                     <textarea class="editable-item" rows="1"
-                                              data-onchange="updateSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx}, this.value)"
+                                              data-oninput="updateSubItemInSub('${subPathStr}', ${liIdx}, ${subIdx}, this.value)"
                                               oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
                                               onfocus="this.select()">${esc(item.text)}</textarea>
                                     ${itemLocBadge}
@@ -377,7 +377,7 @@ function renderMain() {
                             </div>
                             <div class="note-content">
                                 <textarea class="editable-content" 
-                                          data-onchange="updateNoteContent(${sec.id}, ${ni}, this.value)"
+                                          data-oninput="updateNoteContent(${sec.id}, ${ni}, this.value)"
                                           style="background:transparent; border:none; color:#d4c45a; font-size:0.95rem; line-height:1.6; outline:none; width:100%; min-height:30px; max-height:200px; font-family:inherit; resize:vertical; padding:0.2rem; border-radius:4px;">${esc(note.content || '')}</textarea>
                             </div>
                             <div class="resize-handle" data-onclick="event.stopPropagation();">
@@ -429,7 +429,7 @@ function renderMain() {
                                 <div class="sub-list-item">
                                     <i class="fas ${icon}" style="color:${color};" data-onclick="toggleSubItem(${sec.id}, ${liIdx}, ${subIdx})" title="Toggle done"></i>
                                     <textarea class="editable-item" rows="1"
-                                              data-onchange="updateSubItem(${sec.id}, ${liIdx}, ${subIdx}, this.value)"
+                                              data-oninput="updateSubItem(${sec.id}, ${liIdx}, ${subIdx}, this.value)"
                                               oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
                                               onfocus="this.select()">${esc(item.text)}</textarea>
                                     ${itemLocBadge}
@@ -528,7 +528,7 @@ function updateNoteContent(sectionId, noteIndex, newValue) {
     const note = sec.notes[noteIndex];
     if (!note) return;
     note.content = newValue;
-    render();
+    persistTextEdit();
 }
 
 function updateListTitle(sectionId, listIndex, newValue) {
@@ -550,7 +550,7 @@ function updateSubItem(sectionId, listIndex, subIndex, newValue) {
     const item = list.items[subIndex];
     if (!item) return;
     item.text = newValue;
-    saveLocalData();
+    persistTextEdit();
 }
 
 // ============================================================
@@ -580,7 +580,7 @@ function updateSubNoteContent(subPath, noteIndex, newValue) {
     const note = sub.notes[noteIndex];
     if (!note) return;
     note.content = newValue;
-    render();
+    persistTextEdit();
 }
 
 function updateSubListTitle(subPath, listIndex, newValue) {
@@ -608,8 +608,17 @@ function updateSubItemInSub(subPath, listIndex, subIndex, newValue) {
     const item = list.items[subIndex];
     if (!item) return;
     item.text = newValue;
-    saveLocalData();
+    persistTextEdit();
 }
+
+// Persist text as it is typed so the last visible edit cannot be lost when
+// navigating or closing the page before a blur/change event.
+function persistTextEdit() {
+    const shared = typeof activeSharedEditorShare === 'function' ? activeSharedEditorShare() : null;
+    if (shared && typeof saveSharedSection === 'function') saveSharedSection(shared);
+    else saveLocalData();
+}
+
 
 // ============================================================
 //  DRAG AND DROP FUNCTIONALITY

@@ -587,23 +587,30 @@ function renderSidebar() {
     sidebarContainer.innerHTML = html;
 }
 
+function hasVisibleSubsections(section) {
+    return Array.isArray(section?.subs) &&
+        section.subs.some(sub => sub && String(sub.name || '').trim());
+}
+
 function renderSidebar() {
     if (!sidebarContainer) return;
     let html = '';
-    html += `<div class="section-group"><div class="section-title ${isSharedSectionsView ? 'active' : ''}" data-onclick="toggleSharedSidebar()"><span><i class="fas ${sharedSidebarExpanded ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-share-alt" style="margin-right:6px"></i> Shared Sections</span></div>`;
+    html += `<div class="section-group"><div class="section-title ${isSharedSectionsView ? 'active' : ''}" data-onclick="toggleSharedSidebar()"><span>${sharedSections.length ? `<i class="fas ${sharedSidebarExpanded ? 'fa-chevron-down' : 'fa-chevron-right'} section-expand-arrow" style="margin-right:6px"></i>` : ''}<i class="fas fa-share-alt" style="margin-right:6px"></i> Shared Sections</span></div>`;
     if (sharedSidebarExpanded) {
         sharedSections.forEach(share => {
             const open = expandedSharedSections.has(share.id);
-            html += `<div class="section-title" style="padding-left:1rem" data-onclick="toggleSharedSource(${share.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
-            if (open) html += sharedSidebarSubtree(share.section.subs, share.id, 2);
+            const hasChildren = hasVisibleSubsections(share.section);
+            html += `<div class="section-title" style="padding-left:1rem" data-onclick="toggleSharedSource(${share.id})"><span>${hasChildren ? `<i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'} section-expand-arrow" style="margin-right:6px"></i>` : ''}<i class="fas fa-folder-open" style="margin-right:6px"></i>${esc(share.section.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); openSharedFromSidebar(${share.id})" title="Open shared section"></i>${canEditSharedSection(share) ? `<i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSharedSubsection(${share.id})" title="Add subsection"></i>` : ''}${isSharedOwner(share) ? `<i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSharedSection(${share.id})" title="Delete shared section"></i>` : ''}</span></div>`;
+            if (open && hasChildren) html += sharedSidebarSubtree(share.section.subs, share.id, 2);
         });
     }
     html += '</div>';
     sections.forEach(sec => {
         const active = selectedSectionId === sec.id && selectedSubsectionPath.length === 0 && !isSharedSectionsView;
         const open = expandedPersonalSections.has(sec.id);
-        html += `<div class="section-group" data-section-id="${sec.id}"><div class="section-title ${active ? 'active' : ''}" data-onclick="togglePersonalSection(${sec.id})"><span><i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'}" style="margin-right:6px"></i><i class="fas fa-folder-open" style="margin-right:6px"></i> ${capitalize(sec.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); selectSection(${sec.id})" title="Open section"></i><i class="fas fa-share-alt" data-onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i><i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i><i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i></span></div>`;
-        if (open) html += renderSubsectionTree(sec.subs, sec.id, [], 1);
+        const hasChildren = hasVisibleSubsections(sec);
+        html += `<div class="section-group" data-section-id="${sec.id}"><div class="section-title ${active ? 'active' : ''}" data-onclick="togglePersonalSection(${sec.id})"><span>${hasChildren ? `<i class="fas ${open ? 'fa-chevron-down' : 'fa-chevron-right'} section-expand-arrow" style="margin-right:6px"></i>` : ''}<i class="fas fa-folder-open" style="margin-right:6px"></i> ${capitalize(sec.name)}</span><span class="section-actions"><i class="fas fa-external-link-alt" data-onclick="event.stopPropagation(); selectSection(${sec.id})" title="Open section"></i><i class="fas fa-share-alt" data-onclick="event.stopPropagation(); shareSection(${sec.id})" title="Share section"></i><i class="fas fa-plus-circle" data-onclick="event.stopPropagation(); addSubsection(${sec.id})" title="Add subsection"></i><i class="fas fa-trash-alt" data-onclick="event.stopPropagation(); deleteSection(${sec.id})" title="Delete section"></i></span></div>`;
+        if (open && hasChildren) html += renderSubsectionTree(sec.subs, sec.id, [], 1);
         html += '</div>';
     });
     sidebarContainer.innerHTML = html;
@@ -620,20 +627,22 @@ renderSidebar = function() {
         const originalAction = title.getAttribute('data-onclick') || '';
         const shareMatch = originalAction.match(/toggleSharedSource\((\d+)\)/);
         const isSharedRoot = originalAction.includes('toggleSharedSidebar');
+        const currentShare = shareMatch && sharedSections.find(item => item.id === Number(shareMatch[1]));
+        const hasChildren = isSharedRoot ? sharedSections.length > 0 : hasVisibleSubsections(currentShare?.section);
         title.removeAttribute('data-onclick');
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
-            const isChevron = event.target.closest('i') === title.querySelector('i');
+            const isChevron = !!event.target.closest('.section-expand-arrow');
             if (isSharedRoot) {
                 if (isChevron) toggleSharedSidebar();
-                else { sharedSidebarExpanded = !sharedSidebarExpanded; showSharedSections(); }
+                else { if (sharedSections.length) sharedSidebarExpanded = !sharedSidebarExpanded; showSharedSections(); }
                 return;
             }
             const shareId = Number(shareMatch?.[1]);
             const share = sharedSections.find(item => item.id === shareId);
             if (!share) return;
             if (isChevron) { toggleSharedSource(shareId); return; }
-            expandedSharedSections.has(shareId) ? expandedSharedSections.delete(shareId) : expandedSharedSections.add(shareId);
+            if (hasChildren) expandedSharedSections.has(shareId) ? expandedSharedSections.delete(shareId) : expandedSharedSections.add(shareId);
             openSharedFromSidebar(shareId);
         });
     });
@@ -641,6 +650,7 @@ renderSidebar = function() {
         const id = Number(group.dataset.sectionId), title = group.querySelector(':scope > .section-title');
         if (!title) return;
         const section = sections.find(item => item.id === id);
+        const hasChildren = hasVisibleSubsections(section);
         if (section?.sharedShareIds?.length) {
             const stop = document.createElement('i');
             stop.className = 'fas fa-unlink'; stop.title = 'Stop sharing';
@@ -650,10 +660,10 @@ renderSidebar = function() {
         title.removeAttribute('data-onclick');
         title.addEventListener('click', event => {
             if (event.target.closest('.section-actions')) return;
-            const isChevron = event.target.closest('i') === title.querySelector('i');
+            const isChevron = !!event.target.closest('.section-expand-arrow');
             if (isChevron) togglePersonalSection(id);
             else {
-                expandedPersonalSections.has(id) ? expandedPersonalSections.delete(id) : expandedPersonalSections.add(id);
+                if (hasChildren) expandedPersonalSections.has(id) ? expandedPersonalSections.delete(id) : expandedPersonalSections.add(id);
                 selectSection(id);
             }
         });

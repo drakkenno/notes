@@ -260,16 +260,43 @@ window.updateSharedListItem = function(shareId, listIndex, itemIndex, value) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     const item = share?.section?.items?.[listIndex]?.items?.[itemIndex];
     if (!share || !item || !canEditSharedSection(share)) return;
-    item.text = value.trim();
+    item.text = value;
     saveSharedSection(share);
 };
+
+window.addSharedListItem = function(shareId, listIndex, afterIndex = null) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const list = share?.section?.items?.[listIndex];
+    if (!share || !list || !canEditSharedSection(share)) return;
+    const items = list.items || (list.items = []);
+    const newIndex = afterIndex === null ? items.length : afterIndex + 1;
+    items.splice(newIndex, 0, { text: '', done: false, rating: 0 });
+    saveSharedSection(share);
+    render();
+    setTimeout(() => {
+        const box = document.querySelector(`.list-box[data-type="sharedList"][data-share-id="${share.id}"][data-index="${listIndex}"]`);
+        const field = box?.querySelectorAll('.editable-item')[newIndex];
+        if (field) { field.focus(); field.select(); }
+    }, 50);
+};
+
+window.deleteSharedListItem = function(shareId, listIndex, itemIndex) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const items = share?.section?.items?.[listIndex]?.items;
+    if (!share || !items || !canEditSharedSection(share)) return;
+    items.splice(itemIndex, 1);
+    saveSharedSection(share);
+    render();
+};
+
 
 window.toggleSharedListItem = function(shareId, listIndex, itemIndex) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     const item = share?.section?.items?.[listIndex]?.items?.[itemIndex];
     if (!share || !item || !canEditSharedSection(share)) return;
     item.done = !item.done;
-    saveSharedSection(share).then(render);
+    saveSharedSection(share);
+    render();
 };
 
 function renderSharedSections() {
@@ -334,16 +361,16 @@ function renderSharedSection(share) {
     } else {
         html += '<div class="box-grid--responsive">';
         notes.forEach((note, noteIndex) => {
-            html += `<article class="note-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedNote(${share.id}, ${noteIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" data-onchange="updateSharedNote(${share.id}, ${noteIndex}, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" data-onchange="updateSharedNote(${share.id}, ${noteIndex}, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></article>`;
+            html += `<article class="note-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedNote(${share.id}, ${noteIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" data-onchange="updateSharedNote(${share.id}, ${noteIndex}, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" data-oninput="updateSharedNote(${share.id}, ${noteIndex}, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></article>`;
         });
         lists.forEach((list, listIndex) => {
-            html += `<article class="list-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedList(${share.id}, ${listIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" data-onchange="updateSharedListTitle(${share.id}, ${listIndex}, this.value)">` : `<span>${esc(list.title || 'List')}</span>`}</div><div class="list-items">`;
+            html += `<article class="list-box" data-type="sharedList" data-share-id="${share.id}" data-index="${listIndex}">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedList(${share.id}, ${listIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" data-onchange="updateSharedListTitle(${share.id}, ${listIndex}, this.value)">` : `<span>${esc(list.title || 'List')}</span>`}${editable ? `<span class="box-actions"><i class="fas fa-plus" data-onclick="addSharedListItem(${share.id}, ${listIndex})" title="Add item"></i></span>` : ''}</div><div class="list-items">`;
             (list.items || []).forEach((item, itemIndex) => {
                 const icon = item.done ? 'fa-check-circle' : 'fa-circle';
-                html += `<div class="sub-list-item"><i class="fas ${icon}" style="color:${item.done ? '#f5e56b' : '#7a7a5a'};${editable ? 'cursor:pointer' : ''}" ${editable ? `data-onclick="toggleSharedListItem(${share.id}, ${listIndex}, ${itemIndex})"` : ''}></i>${editable ? `<textarea class="editable-item" rows="1" data-onchange="updateSharedListItem(${share.id}, ${listIndex}, ${itemIndex}, this.value)">${esc(item.text || '')}</textarea>` : `<span>${esc(item.text || '')}</span>`}</div>`;
+                html += `<div class="sub-list-item"><i class="fas ${icon}" style="color:${item.done ? '#f5e56b' : '#7a7a5a'};${editable ? 'cursor:pointer' : ''}" ${editable ? `data-onclick="toggleSharedListItem(${share.id}, ${listIndex}, ${itemIndex})"` : ''}></i>${editable ? `<textarea class="editable-item" rows="1" data-oninput="updateSharedListItem(${share.id}, ${listIndex}, ${itemIndex}, this.value)">${esc(item.text || '')}</textarea><i class="fas fa-times item-delete" data-onclick="deleteSharedListItem(${share.id}, ${listIndex}, ${itemIndex})" title="Delete item"></i>` : `<span>${esc(item.text || '')}</span>`}</div>`;
             });
             if (!(list.items || []).length) html += '<div class="empty-message">No items</div>';
-            html += '</div></article>';
+            html += `</div>${editable ? `<button class="add-item-btn" data-onclick="addSharedListItem(${share.id}, ${listIndex})"><i class="fas fa-plus"></i> Add item</button>` : ''}</article>`;
         });
         html += '</div>';
     }
@@ -982,10 +1009,16 @@ function mutateSharedSubsection(shareId, subPath, mutation) {
     requestAnimationFrame(() => { const restored = document.getElementById('canvas'); if (restored) { restored.scrollTop = scroll.top; restored.scrollLeft = scroll.left; } window.restoreSelectedBox?.(); });
 }
 window.addSharedSubItem = function(shareId, subPath, listIndex, afterIndex = null) {
+    let newIndex = -1;
     mutateSharedSubsection(shareId, subPath, sub => {
         const list = sub.items?.[listIndex];
-        if (list) { const items = list.items || (list.items = []); const newIndex = afterIndex === null ? items.length : afterIndex + 1; items.splice(newIndex, 0, { text: '', done: false, rating: 0 }); }
+        if (list) { const items = list.items || (list.items = []); newIndex = afterIndex === null ? items.length : afterIndex + 1; items.splice(newIndex, 0, { text: '', done: false, rating: 0 }); }
     });
+    setTimeout(() => {
+        const box = document.querySelector(`.list-box[data-type="sharedSubList"][data-share-id="${Number(shareId)}"][data-index="${listIndex}"]`);
+        const field = newIndex >= 0 ? box?.querySelectorAll('.editable-item')[newIndex] : null;
+        if (field) { field.focus(); field.select(); }
+    }, 50);
 };
 window.deleteSharedSubItem = function(shareId, subPath, listIndex, itemIndex) {
     mutateSharedSubsection(shareId, subPath, sub => sub.items?.[listIndex]?.items?.splice(itemIndex, 1));

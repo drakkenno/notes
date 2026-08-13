@@ -12,7 +12,7 @@
     <link rel="apple-touch-icon" href="icons/icon-192.svg" />
     <title>Notes</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-    <link rel="stylesheet" href="style.css?v=context-organize-13" />
+    <link rel="stylesheet" href="style.css?v=context-organize-14" />
 </head>
 <body>
     <div class="login-overlay visible" id="loginOverlay">
@@ -92,11 +92,11 @@
 
     <script src="config.js"></script>
     <script src="auth.js"></script>
-    <script src="app.js?v=sidebar-row-toggle-4"></script>
+    <script src="app.js?v=sidebar-row-toggle-5"></script>
     <script src="ui.js?v=all-organize-7"></script>
     <script src="crud.js"></script>
     <script src="shared.js?v=aligned-headers-5"></script>
-    <script src="events.js"></script>
+    <script src="events.js?v=typing-confirm-1"></script>
     <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(error => console.warn('Offline support could not be enabled:', error))); }</script>
 
     <script>
@@ -175,6 +175,11 @@
             setSidebarOpen(false);
         });
         document.getElementById('mobileOrganizeBtn')?.addEventListener('click', function() {
+            if (this.hasAttribute('data-typing-confirm')) {
+                window.finishTyping?.();
+                return;
+            }
+
             if (typeof isSharedSectionsView !== 'undefined' && isSharedSectionsView) {
                 if (selectedSharedSubsectionPath?.length) window.organizeSharedSubsectionCanvas?.();
                 else if (selectedSharedSectionId !== null) window.organizeSharedSectionCanvas?.();

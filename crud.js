@@ -207,8 +207,9 @@ window.addSubItem = function(sectionId, listIndex, afterIndex = null) {
     list.items.splice(newIndex, 0, { text: '', done: false, rating: 0 });
     render();
     setTimeout(() => {
-        const newItem = document.querySelector('.list-box.box-selected')?.querySelectorAll('.editable-item')[newIndex];
-        newItem?.focus();
+        const box = document.getElementById(`box-${sectionId}-list-${listIndex}`);
+        const newItem = box?.querySelectorAll('.editable-item')[newIndex];
+        if (newItem) { newItem.focus(); newItem.select(); }
     }, 50);
 };
 
@@ -322,8 +323,9 @@ window.addSubItemToSub = function(subPath, listIndex, afterIndex = null) {
     list.items.splice(newIndex, 0, { text: '', done: false, rating: 0 });
     render();
     setTimeout(() => {
-        const newItem = document.querySelector('.list-box.box-selected')?.querySelectorAll('.editable-item')[newIndex];
-        newItem?.focus();
+        const box = document.querySelector(`.list-box[data-type="subList"][data-index="${listIndex}"]`);
+        const newItem = box?.querySelectorAll('.editable-item')[newIndex];
+        if (newItem) { newItem.focus(); newItem.select(); }
     }, 50);
 };
 

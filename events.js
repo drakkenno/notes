@@ -30,7 +30,10 @@ document.addEventListener('keydown', event => {
     const itemIndex = Array.from(box.querySelectorAll('textarea.editable-item')).indexOf(input);
     if (itemIndex < 0) return;
     const isEmpty = input.value.trim() === '';
-    if (box.dataset.type === 'sharedSubList') {
+    if (box.dataset.type === 'sharedList') {
+        if (isEmpty) input.blur();
+        else { updateSharedListItem(Number(box.dataset.shareId), Number(box.dataset.index), itemIndex, input.value); input.blur(); }
+    } else if (box.dataset.type === 'sharedSubList') {
         if (isEmpty) input.blur();
         else { updateSharedSubsectionValue(Number(box.dataset.shareId), box.dataset.subPath, 'item', Number(box.dataset.index), itemIndex, 'text', input.value); input.blur(); }
     } else if (box.dataset.type === 'subList') {
@@ -207,7 +210,7 @@ document.addEventListener('keydown', event => {
   const argument = (value, element, event) => { value=value.trim(); if(value==='this.value') return element.value; if(value==='event') return event; if(/^[-+]?\d+(\.\d+)?$/.test(value)) return Number(value); if(value==='true'||value==='false') return value==='true'; if((value.startsWith("'")&&value.endsWith("'"))||(value.startsWith('"')&&value.endsWith('"'))) return value.slice(1,-1).replace(/\\'/g,"'").replace(/\\"/g,'"').replace(/\\\\/g,'\\'); return value; };
   const invoke = (expression, event, element) => { expression=expression.trim(); if(!expression||expression==='return false') return expression==='return false'; if(expression==='event.stopPropagation()'){event.stopPropagation();return;} if(expression==='event.preventDefault()'){event.preventDefault();return;} if(expression==='isSharedSectionsView=false'){window.isSharedSectionsView=false;return;} const focus=expression.match(/^document\.querySelector\((['"])(.*?)\1\)\.focus\(\)$/); if(focus){document.querySelector(focus[2])?.focus();return;} const call=expression.match(/^([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\((.*)\)$/); if(!call)return; let target=window; for(const part of call[1].split('.'))target=target?.[part]; if(typeof target!=='function')return; const scopedEvent = new Proxy(event, { get(target, property) { if (property === 'currentTarget') return element; const value = Reflect.get(target, property, target); return typeof value === 'function' ? value.bind(target) : value; } }); const args=splitArgs(call[2]).map(value=>argument(value,element,scopedEvent)); target(...args); };
   const run = (event, attribute) => { const element=event.target.closest(`[${attribute}]`); if(!element)return; const source=element.getAttribute(attribute)||''; let statement='',quote='',depth=0; for(let i=0;i<=source.length;i++){const c=source[i]||';'; if(quote){statement+=c;if(c===quote&&source[i-1]!=='\\')quote='';continue;} if(c==='"'||c==="'"){quote=c;statement+=c;continue;} if(c==='(')depth++; if(c===')')depth--; if(c===';'&&depth===0){const result=invoke(statement,event,element); if(result)event.preventDefault(); statement='';} else statement+=c;} };
-  [['click','data-onclick'],['change','data-onchange'],['mousedown','data-onmousedown'],['dragstart','data-ondragstart'],['dragover','data-ondragover'],['dragleave','data-ondragleave'],['drop','data-ondrop']].forEach(([type,attribute])=>document.addEventListener(type,event=>run(event,attribute)));
+  [['click','data-onclick'],['input','data-oninput'],['change','data-onchange'],['mousedown','data-onmousedown'],['dragstart','data-ondragstart'],['dragover','data-ondragover'],['dragleave','data-ondragleave'],['drop','data-ondrop']].forEach(([type,attribute])=>document.addEventListener(type,event=>run(event,attribute)));
 })();
 
 // Double-click a list card's non-editable surface to expand it to all items.
@@ -222,6 +225,98 @@ document.addEventListener('dblclick', event => {
 });
 
 window.addEventListener('resize', () => requestAnimationFrame(updateCanvasExtent));
+
+// Keep the active editor visible inside both the canvas and the visual viewport.
+// Typing temporarily replaces Organize with an explicit confirmation action.
+let activeTypingField = null;
+let typingActionState = null;
+let editorVisibilityFrame = null;
+
+function isTextEditor(element) {
+    return element?.matches?.('.editable-title, .editable-content, .editable-item');
+}
+
+function keepTextEditorVisible(field) {
+    if (!isTextEditor(field) || !field.isConnected) return;
+    cancelAnimationFrame(editorVisibilityFrame);
+    editorVisibilityFrame = requestAnimationFrame(() => {
+        field.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'auto' });
+        const viewport = window.visualViewport;
+        const top = (viewport?.offsetTop || 0) + 12;
+        const bottom = (viewport?.offsetTop || 0) + (viewport?.height || window.innerHeight) - 12;
+        const rect = field.getBoundingClientRect();
+        if (rect.top < top) window.scrollBy({ top: rect.top - top, behavior: 'auto' });
+        else if (rect.bottom > bottom) window.scrollBy({ top: rect.bottom - bottom, behavior: 'auto' });
+    });
+}
+
+function restoreTypingAction() {
+    const state = typingActionState;
+    typingActionState = null;
+    if (!state?.button?.isConnected) return;
+    state.button.className = state.className;
+    state.button.innerHTML = state.html;
+    state.button.removeAttribute('data-typing-confirm');
+    state.button.title = state.title;
+    state.button.setAttribute('aria-label', state.ariaLabel);
+    state.dock?.classList.remove('typing-active');
+}
+
+function showTypingAction(field) {
+    activeTypingField = field;
+    keepTextEditorVisible(field);
+    const dock = document.getElementById('mobileOrganizeDock');
+    const button = document.getElementById('mobileOrganizeBtn');
+    if (!dock || !button) return;
+    if (typingActionState?.button?.isConnected) return;
+    typingActionState = {
+        button,
+        dock,
+        className: button.className,
+        html: button.innerHTML,
+        title: button.title,
+        ariaLabel: button.getAttribute('aria-label') || 'Organize cards'
+    };
+    dock.classList.add('typing-active');
+    button.classList.add('typing-confirm-btn');
+    button.innerHTML = '<i class="fas fa-check"></i><span>Confirm</span>';
+    button.title = 'Finish typing';
+    button.setAttribute('aria-label', 'Finish typing');
+
+    button.setAttribute('data-typing-confirm', 'true');
+}
+window.finishTyping = function() {
+    const field = activeTypingField;
+    if (isTextEditor(field) && field.isConnected) {
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+        field.blur();
+    }
+    activeTypingField = null;
+    restoreTypingAction();
+};
+
+document.addEventListener('focusin', event => {
+    if (!isTextEditor(event.target)) return;
+    activeTypingField = event.target;
+    keepTextEditorVisible(event.target);
+});
+document.addEventListener('input', event => {
+    if (!isTextEditor(event.target)) return;
+    showTypingAction(event.target);
+});
+document.addEventListener('focusout', event => {
+    if (!isTextEditor(event.target)) return;
+    if (event.relatedTarget?.matches?.('[data-typing-confirm]')) return;
+    setTimeout(() => {
+        if (isTextEditor(document.activeElement)) return;
+        activeTypingField = null;
+        restoreTypingAction();
+    }, 0);
+});
+window.visualViewport?.addEventListener('resize', () => {
+    if (isTextEditor(document.activeElement)) keepTextEditorVisible(document.activeElement);
+});
 
 // Subsections are navigation-only. Drag/drop remains available only for
 // top-level section titles, where it changes section order.
