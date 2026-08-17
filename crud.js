@@ -461,3 +461,55 @@ window.deleteSection = async function(id) {
     if (selectedSectionId === id) { selectedSectionId = null; selectedSubsectionPath = []; }
     render();
 };
+// ============================================================
+//  EXPORT - SECTIONS & SUBSECTIONS (download as JSON)
+// ============================================================
+function downloadJson(filename, data) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function safeFileName(name) {
+    const cleaned = String(name || 'export').trim().toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '');
+    return cleaned || 'export';
+}
+
+// Download a single section (with its notes, lists, and nested subsections) as a JSON file.
+window.exportSection = function(sectionId) {
+    const sec = sections.find(s => s.id === Number(sectionId));
+    if (!sec) return;
+    downloadJson(`${safeFileName(sec.name)}.json`, {
+        type: 'section',
+        name: sec.name,
+        notes: sec.notes || [],
+        items: sec.items || [],
+        subs: sec.subs || []
+    });
+    showSaveIndicator(`Exported section "${capitalize(sec.name)}"`);
+};
+
+// Download the currently selected subsection (identified by its '/' separated path) as a JSON file.
+window.exportSubsection = function(path) {
+    const pathArray = String(path || '').split('/').filter(Boolean);
+    if (!pathArray.length) return;
+    const sec = sections.find(s => s.id === selectedSectionId);
+    if (!sec) return;
+    const sub = getSubsectionByPath(sec, pathArray);
+    if (!sub) return;
+    downloadJson(`${safeFileName(sub.name)}.json`, {
+        type: 'subsection',
+        name: sub.name,
+        path: pathArray.join('/'),
+        notes: sub.notes || [],
+        items: sub.items || [],
+        subs: sub.subs || []
+    });
+    showSaveIndicator(`Exported subsection "${capitalize(sub.name)}"`);
+};

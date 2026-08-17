@@ -139,11 +139,13 @@ function renderMain() {
                             ? `<button class="back-btn canvas-action-btn" data-onclick="addSubNote('${escJs(selectedSubsectionPath.join('/'))}')"><i class="fas fa-plus"></i> Add note</button>
                                <button class="back-btn canvas-action-btn" data-onclick="addSubList('${escJs(selectedSubsectionPath.join('/'))}')"><i class="fas fa-plus"></i> Add list</button>
                                <button class="back-btn canvas-action-btn" data-onclick="addSubsection(${sec.id}, '${escJs(selectedSubsectionPath.join('/'))}')"><i class="fas fa-plus"></i> Add subsection</button>
-                               <button class="back-btn canvas-action-btn desktop-organize-btn" data-onclick="organizePersonalSubsectionCanvas()"><i class="fas fa-th-large"></i> Organize</button>`
+                               <button class="back-btn canvas-action-btn desktop-organize-btn" data-onclick="organizePersonalSubsectionCanvas()"><i class="fas fa-th-large"></i> Organize</button>
+                               <button class="back-btn canvas-action-btn" data-onclick="exportSubsection('${escJs(selectedSubsectionPath.join('/'))}')"><i class="fas fa-download"></i> Export</button>`
                             : `<button class="back-btn canvas-action-btn" data-onclick="addNoteToSection(${sec.id})"><i class="fas fa-plus"></i> Add note</button>
                                <button class="back-btn canvas-action-btn" data-onclick="addListToSection(${sec.id})"><i class="fas fa-plus"></i> Add list</button>
                                <button class="back-btn canvas-action-btn" data-onclick="addSubsection(${sec.id})"><i class="fas fa-plus"></i> Add subsection</button>
-                               <button class="back-btn canvas-action-btn desktop-organize-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>`}
+                               <button class="back-btn canvas-action-btn desktop-organize-btn" data-onclick="organizeCanvas()"><i class="fas fa-th-large"></i> Organize</button>
+                               <button class="back-btn canvas-action-btn" data-onclick="exportSection(${sec.id})"><i class="fas fa-download"></i> Export</button>`}
                         <button class="back-btn" data-onclick="clearSelection()"><i class="fas fa-arrow-left"></i> Back</button>
                     </div>
                     </div>
