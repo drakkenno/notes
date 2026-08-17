@@ -162,6 +162,9 @@ window.addNoteToSection = function(sectionId) {
 window.deleteNote = function(id, noteIndex) {
     const sec = sections.find(s => s.id === id);
     if (!sec) return;
+    const note = sec.notes[noteIndex];
+    if (!note) return;
+    if (!confirm(`⚠️ Delete note "${note.title || 'Note'}"? This cannot be undone.`)) return;
     sec.notes.splice(noteIndex, 1);
     render();
 };
@@ -189,6 +192,9 @@ window.addListToSection = function(sectionId) {
 window.deleteList = function(sectionId, listIndex) {
     const sec = sections.find(s => s.id === sectionId);
     if (!sec) return;
+    const list = sec.items[listIndex];
+    if (!list) return;
+    if (!confirm(`⚠️ Delete list "${list.title || 'List'}" and all of its items? This cannot be undone.`)) return;
     sec.items.splice(listIndex, 1);
     render();
 };
@@ -218,6 +224,9 @@ window.deleteSubItem = function(sectionId, listIndex, subIndex) {
     if (!sec) return;
     const list = sec.items[listIndex];
     if (!list) return;
+    const item = list.items[subIndex];
+    if (!item) return;
+    if (!confirm(`⚠️ Delete list item "${item.text || '(empty item)'}"? This cannot be undone.`)) return;
     list.items.splice(subIndex, 1);
     render();
 };
@@ -269,6 +278,9 @@ window.deleteSubNote = function(subPath, noteIndex) {
     const pathArray = subPath.split('/');
     const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
+    const note = sub.notes[noteIndex];
+    if (!note) return;
+    if (!confirm(`⚠️ Delete note "${note.title || 'Note'}"? This cannot be undone.`)) return;
     sub.notes.splice(noteIndex, 1);
     render();
 };
@@ -302,6 +314,9 @@ window.deleteSubList = function(subPath, listIndex) {
     const pathArray = subPath.split('/');
     const sub = getSubsectionByPath(sec, pathArray);
     if (!sub) return;
+    const list = sub.items[listIndex];
+    if (!list) return;
+    if (!confirm(`⚠️ Delete list "${list.title || 'List'}" and all of its items? This cannot be undone.`)) return;
     sub.items.splice(listIndex, 1);
     render();
 };
@@ -337,6 +352,9 @@ window.deleteSubItemFromSub = function(subPath, listIndex, subIndex) {
     if (!sub) return;
     const list = sub.items[listIndex];
     if (!list) return;
+    const item = list.items[subIndex];
+    if (!item) return;
+    if (!confirm(`⚠️ Delete list item "${item.text || '(empty item)'}"? This cannot be undone.`)) return;
     list.items.splice(subIndex, 1);
     render();
 };
