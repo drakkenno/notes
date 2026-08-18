@@ -83,12 +83,36 @@ window.cardClipboard = null;
 window.itemSelection = [];
 window.itemClipboard = null;
 window.itemListFor = function(box) {
+    if (!box) return null;
+    if (box.dataset.type === 'sharedList') {
+        const share = sharedSections.find(item => item.id === Number(box.dataset.shareId));
+        return share?.section?.items?.[Number(box.dataset.index)] || null;
+    }
+    if (box.dataset.type === 'sharedSubList') {
+        const share = sharedSections.find(item => item.id === Number(box.dataset.shareId));
+        const subsection = getSharedSubsection(share, box.dataset.subPath);
+        return subsection?.items?.[Number(box.dataset.index)] || null;
+    }
     const section = sections.find(item => item.id === selectedSectionId);
-    if (!section || box.dataset.type === 'sharedSubList') return null;
+    if (!section) return null;
     const container = box.dataset.type === 'subList'
         ? getSubsectionByPath(section, box.dataset.subPath.split('/').filter(Boolean))
         : section;
     return container?.items?.[Number(box.dataset.index)] || null;
+};
+window.canEditItemList = function(box) {
+    if (box?.dataset.type !== 'sharedList' && box?.dataset.type !== 'sharedSubList') return true;
+    const share = sharedSections.find(item => item.id === Number(box.dataset.shareId));
+    return !!share && canEditSharedSection(share);
+};
+window.saveSharedItemListChanges = function(boxes) {
+    const changedShares = new Set();
+    boxes.forEach(box => {
+        if (box?.dataset.type !== 'sharedList' && box?.dataset.type !== 'sharedSubList') return;
+        const share = sharedSections.find(item => item.id === Number(box.dataset.shareId));
+        if (share) changedShares.add(share);
+    });
+    changedShares.forEach(saveSharedSection);
 };
 document.addEventListener('click', event => {
     const row = event.target.closest('.list-box .sub-list-item');
@@ -129,7 +153,9 @@ document.addEventListener('keydown', event => {
     const key = event.key.toLowerCase();
     if (key === 'backspace' && window.itemSelection.length && !event.target.matches('input, textarea')) {
         const groups = new Map();
+        const editedBoxes = [...new Set(window.itemSelection.filter(({ box }) => window.canEditItemList(box)).map(({ box }) => box))];
         window.itemSelection.forEach(({ box, index }) => {
+            if (!window.canEditItemList(box)) return;
             const list = window.itemListFor(box);
             if (!list?.items) return;
             const indexes = groups.get(list) || [];
@@ -145,6 +171,7 @@ document.addEventListener('keydown', event => {
         if (!deleted) return;
         event.preventDefault();
         event.stopImmediatePropagation();
+        window.saveSharedItemListChanges(editedBoxes);
         window.itemSelection = [];
         render();
         showSaveIndicator(`${deleted} item${deleted === 1 ? '' : 's'} deleted`);
@@ -158,12 +185,14 @@ document.addEventListener('keydown', event => {
         window.itemClipboard = copies;
         showSaveIndicator(`${copies.length} item${copies.length === 1 ? '' : 's'} copied`);
     } else if (key === 'v' && window.itemClipboard?.length) {
-        const destination = window.itemListFor(document.querySelector('.list-box.box-selected'));
-        if (!destination) return;
+        const destinationBox = document.querySelector('.list-box.box-selected');
+        const destination = window.itemListFor(destinationBox);
+        if (!destination || !window.canEditItemList(destinationBox)) return;
         event.preventDefault();
         event.stopImmediatePropagation();
         destination.items = destination.items || [];
         destination.items.push(...window.itemClipboard.map(item => JSON.parse(JSON.stringify(item))));
+        window.saveSharedItemListChanges([destinationBox]);
         window.itemSelection = [];
         render();
         showSaveIndicator(`${window.itemClipboard.length} item${window.itemClipboard.length === 1 ? '' : 's'} pasted`);
