@@ -466,8 +466,12 @@ window.syncSharedSectionNow = async function() {
 // Selected shared subsections render their own notes and lists while retaining the parent share connection.
 let selectedSharedSubsectionPath = [];
 function getSharedSubsection(share, path) {
+    // The delegated DOM handlers pass data attributes as strings, while
+    // callers inside the renderer often have an array. Treat both forms as
+    // a sequence of subsection names.
+    const names = Array.isArray(path) ? path : String(path || '').split('/').filter(Boolean);
     let items = share?.section?.subs || [], found = null;
-    for (const name of path) { found = items.find(item => item.name === name); if (!found) return null; items = found.subs || []; }
+    for (const name of names) { found = items.find(item => item.name === name); if (!found) return null; items = found.subs || []; }
     return found;
 }
 window.openSharedSubsection = function(shareId, path) {
