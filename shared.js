@@ -227,7 +227,7 @@ window.addSharedList = function(shareId) {
     if (!share || !canEditSharedSection(share)) return;
     const lists = share.section.items || (share.section.items = []);
     const index = lists.length;
-    lists.push({ title: 'New List', items: [], x: 340 + (index * 20) % 200, y: 10 + (index * 20) % 200, width: 320, height: 200 });
+    lists.push({ title: 'New List', items: [], x: 340 + (index * 20) % 200, y: 10 + (index * 20) % 200, width: 320, height: 140, autoSize: true });
     saveSharedSection(share);
     render();
     focusNewestSharedTitle('list');
@@ -283,10 +283,41 @@ window.addSharedListItem = function(shareId, listIndex, afterIndex = null) {
 window.deleteSharedListItem = function(shareId, listIndex, itemIndex) {
     const share = sharedSections.find(item => item.id === Number(shareId));
     const items = share?.section?.items?.[listIndex]?.items;
-    if (!share || !items || !canEditSharedSection(share)) return;
+    const item = items?.[itemIndex];
+    if (!share || !item || !canEditSharedSection(share)) return;
+    if (!confirm(`Delete list item "${item.text || '(empty item)'}"? This cannot be undone.`)) return;
     items.splice(itemIndex, 1);
     saveSharedSection(share);
     render();
+};
+
+window.setSharedListLocation = function(shareId, listIndex, itemIndex = null) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const list = share?.section?.items?.[listIndex];
+    const target = itemIndex === null ? list : list?.items?.[itemIndex];
+    if (!share || !target || !canEditSharedSection(share)) return;
+    const label = itemIndex === null
+        ? 'Paste Google Maps link or address for this list:'
+        : 'Paste Google Maps link or address:';
+    const location = prompt(label, target.location || '');
+    if (location === null) return;
+    target.location = location.trim();
+    saveSharedSection(share);
+    render();
+};
+
+window.exportSharedSection = function(shareId) {
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    if (!share?.section) return;
+    const section = share.section;
+    downloadJson(`${safeFileName(section.name)}.json`, {
+        type: 'section',
+        name: section.name,
+        notes: section.notes || [],
+        items: section.items || [],
+        subs: section.subs || []
+    });
+    showSaveIndicator(`Exported shared section "${capitalize(section.name)}"`);
 };
 
 
@@ -352,7 +383,7 @@ function renderSharedSection(share) {
     html += editable
         ? `<input class="editable-title" value="${esc(section.name)}" data-onchange="updateSharedSectionTitle(${share.id}, this.value)">`
         : `<h1>${capitalize(section.name)}</h1>`;
-    html += `<span class="shared-access-badge"><i class="fas ${editable ? 'fa-pen' : 'fa-eye'}"></i> ${permission}</span></div><button class="back-btn" data-onclick="closeSharedSection()"><i class="fas fa-arrow-left"></i> Back</button></div>`;
+    html += `<span class="shared-access-badge"><i class="fas ${editable ? 'fa-pen' : 'fa-eye'}"></i> ${permission}</span></div><button class="back-btn canvas-action-btn shared-export-btn" data-onclick="exportSharedSection(${share.id})"><i class="fas fa-download"></i> Export</button><button class="back-btn" data-onclick="closeSharedSection()"><i class="fas fa-arrow-left"></i> Back</button></div>`;
 
     const notes = section.notes || [];
     const lists = section.items || [];
@@ -364,10 +395,11 @@ function renderSharedSection(share) {
             html += `<article class="note-box">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedNote(${share.id}, ${noteIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-pen-fancy"></i>${editable ? `<input class="editable-title" value="${esc(note.title || 'Note')}" data-onchange="updateSharedNote(${share.id}, ${noteIndex}, 'title', this.value)">` : `<span>${esc(note.title || 'Note')}</span>`}</div><div class="note-content">${editable ? `<textarea class="editable-content" data-oninput="updateSharedNote(${share.id}, ${noteIndex}, 'content', this.value)">${esc(note.content || '')}</textarea>` : `<div class="shared-readonly-content">${esc(note.content || '')}</div>`}</div></article>`;
         });
         lists.forEach((list, listIndex) => {
-            html += `<article class="list-box" data-type="sharedList" data-share-id="${share.id}" data-index="${listIndex}">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedList(${share.id}, ${listIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" data-onchange="updateSharedListTitle(${share.id}, ${listIndex}, this.value)">` : `<span>${esc(list.title || 'List')}</span>`}${editable ? `<span class="box-actions"><i class="fas fa-plus" data-onclick="addSharedListItem(${share.id}, ${listIndex})" title="Add item"></i></span>` : ''}</div><div class="list-items">`;
+            const listLocation = renderLocationBadge(list.location);
+            html += `<article class="list-box" data-type="sharedList" data-share-id="${share.id}" data-index="${listIndex}">${editable ? `<button class="box-delete-btn" data-onclick="deleteSharedList(${share.id}, ${listIndex})"><i class="fas fa-times"></i></button>` : ''}<div class="box-title"><i class="fas fa-list-ul"></i>${editable ? `<input class="editable-title" value="${esc(list.title || 'List')}" data-onchange="updateSharedListTitle(${share.id}, ${listIndex}, this.value)">` : `<span>${esc(list.title || 'List')}</span>`}${listLocation}${editable ? `<span class="box-actions"><i class="fas fa-map-marker-alt ${list.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSharedListLocation(${share.id}, ${listIndex})" title="Add or edit list location"></i><i class="fas fa-plus" data-onclick="addSharedListItem(${share.id}, ${listIndex})" title="Add item"></i></span>` : ''}</div><div class="list-items">`;
             (list.items || []).forEach((item, itemIndex) => {
                 const icon = item.done ? 'fa-check-circle' : 'fa-circle';
-                html += `<div class="sub-list-item"><i class="fas ${icon}" style="color:${item.done ? '#f5e56b' : '#7a7a5a'};${editable ? 'cursor:pointer' : ''}" ${editable ? `data-onclick="toggleSharedListItem(${share.id}, ${listIndex}, ${itemIndex})"` : ''}></i>${editable ? `<textarea class="editable-item" rows="1" data-oninput="updateSharedListItem(${share.id}, ${listIndex}, ${itemIndex}, this.value)">${esc(item.text || '')}</textarea><i class="fas fa-times item-delete" data-onclick="deleteSharedListItem(${share.id}, ${listIndex}, ${itemIndex})" title="Delete item"></i>` : `<span>${esc(item.text || '')}</span>`}</div>`;
+                html += `<div class="sub-list-item"><i class="fas ${icon}" style="color:${item.done ? '#f5e56b' : '#7a7a5a'};${editable ? 'cursor:pointer' : ''}" ${editable ? `data-onclick="toggleSharedListItem(${share.id}, ${listIndex}, ${itemIndex})"` : ''}></i>${editable ? `<textarea class="editable-item" rows="1" data-oninput="updateSharedListItem(${share.id}, ${listIndex}, ${itemIndex}, this.value)" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" onfocus="this.select()">${esc(item.text || '')}</textarea>` : `<span>${esc(item.text || '')}</span>`}${renderLocationBadge(item.location, true)}${editable ? `<span class="item-tag">${item.done ? 'done' : 'pending'}</span><i class="fas fa-map-marker-alt ${item.location ? 'has-location' : ''}" data-onclick="event.stopPropagation(); setSharedListLocation(${share.id}, ${listIndex}, ${itemIndex})" title="Add or edit location"></i><i class="fas fa-times item-delete" data-onclick="deleteSharedListItem(${share.id}, ${listIndex}, ${itemIndex})" title="Delete item"></i>` : ''}</div>`;
             });
             if (!(list.items || []).length) html += '<div class="empty-message">No items</div>';
             html += `</div>${editable ? `<button class="add-item-btn" data-onclick="addSharedListItem(${share.id}, ${listIndex})"><i class="fas fa-plus"></i> Add item</button>` : ''}</article>`;
@@ -577,13 +609,8 @@ window.openSharedFromSidebar = function(shareId) {
     selectedSectionId = share.section.id; selectedSubsectionPath = []; isSharedSectionsView = false; render();
 };
 window.selectSharedSection = function(shareId) {
-    selectedSharedSectionId = Number(shareId);
-    isSharedSectionsView = true;
-    selectedSectionId = null;
-    selectedSubsectionPath = [];
-    selectedSharedSubsectionPath = [];
-    activeSharedEditorId = null;
-    render();
+    // Reuse the personal canvas feature set while retaining the shared save path.
+    openSharedFromSidebar(Number(shareId));
 };
 render = function() {
     const share = activeSharedEditorShare();
@@ -1025,7 +1052,12 @@ window.addSharedSubItem = function(shareId, subPath, listIndex, afterIndex = nul
     }, 50);
 };
 window.deleteSharedSubItem = function(shareId, subPath, listIndex, itemIndex) {
-    mutateSharedSubsection(shareId, subPath, sub => sub.items?.[listIndex]?.items?.splice(itemIndex, 1));
+    const share = sharedSections.find(item => item.id === Number(shareId));
+    const sub = getSharedSubsection(share, String(subPath).split('/').filter(Boolean));
+    const item = sub?.items?.[listIndex]?.items?.[itemIndex];
+    if (!share || !item || !canEditSharedSection(share)) return;
+    if (!confirm(`Delete list item "${item.text || '(empty item)'}"? This cannot be undone.`)) return;
+    mutateSharedSubsection(shareId, subPath, target => target.items?.[listIndex]?.items?.splice(itemIndex, 1));
 };
 window.toggleSharedSubItem = function(shareId, subPath, listIndex, itemIndex) {
     mutateSharedSubsection(shareId, subPath, sub => {
@@ -1092,13 +1124,18 @@ window.openSharedSubsection = function(shareId, path) {
         showSaveIndicator('Shared subsection not found', true);
         return;
     }
-    if (activeSharedEditorId !== null && typeof leaveSharedEditor === 'function') leaveSharedEditor();
-    activeSharedEditorId = null;
+    if (!savedPersonalEditorState) {
+        savedPersonalEditorState = { sections, nextId, selectedSectionId, selectedSubsectionPath };
+    }
+    activeSharedEditorId = share.id;
+    sections = [share.section];
+    nextId = Math.max(nextId || 1, Number(share.section.id || 0) + 1);
+    selectedSectionId = share.section.id;
+    selectedSubsectionPath = subsectionPath;
     selectedSharedSectionId = share.id;
     selectedSharedSubsectionPath = subsectionPath;
-    selectedSectionId = null;
-    selectedSubsectionPath = [];
-    isSharedSectionsView = true;
+    isSharedSectionsView = false;
+    sharedEditorLastSnapshot = JSON.stringify(share.section);
     render();
 };
 
@@ -1181,6 +1218,10 @@ function alignSeparateSharedCanvasHeader() {
     organize.innerHTML = '<i class="fas fa-th-large"></i> Organize';
     organize.setAttribute('data-onclick', !selected ? 'organizeSharedCanvas()' : subsection ? 'organizeSharedSubsectionCanvas()' : 'organizeSharedSectionCanvas()');
     actions.appendChild(organize);
+
+    // Match personal headers: Add actions, Organize, Export, then Back.
+    const exportButton = header.querySelector(':scope > .shared-export-btn');
+    if (exportButton) actions.appendChild(exportButton);
 
     const back = header.querySelector(':scope > .back-btn');
     if (back) actions.appendChild(back);

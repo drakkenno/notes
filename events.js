@@ -29,20 +29,19 @@ document.addEventListener('keydown', event => {
     const input = event.target, box = input.closest('.list-box');
     const itemIndex = Array.from(box.querySelectorAll('textarea.editable-item')).indexOf(input);
     if (itemIndex < 0) return;
-    const isEmpty = input.value.trim() === '';
     if (box.dataset.type === 'sharedList') {
-        if (isEmpty) input.blur();
-        else { updateSharedListItem(Number(box.dataset.shareId), Number(box.dataset.index), itemIndex, input.value); input.blur(); }
+        updateSharedListItem(Number(box.dataset.shareId), Number(box.dataset.index), itemIndex, input.value);
     } else if (box.dataset.type === 'sharedSubList') {
-        if (isEmpty) input.blur();
-        else { updateSharedSubsectionValue(Number(box.dataset.shareId), box.dataset.subPath, 'item', Number(box.dataset.index), itemIndex, 'text', input.value); input.blur(); }
+        updateSharedSubsectionValue(Number(box.dataset.shareId), box.dataset.subPath, 'item', Number(box.dataset.index), itemIndex, 'text', input.value);
     } else if (box.dataset.type === 'subList') {
-        if (isEmpty) input.blur();
-        else { updateSubItemInSub(box.dataset.subPath, Number(box.dataset.index), itemIndex, input.value); input.blur(); }
+        updateSubItemInSub(box.dataset.subPath, Number(box.dataset.index), itemIndex, input.value);
     } else {
-        if (isEmpty) input.blur();
-        else { updateSubItem(Number(box.dataset.sectionId), Number(box.dataset.index), itemIndex, input.value); input.blur(); }
+        updateSubItem(Number(box.dataset.sectionId), Number(box.dataset.index), itemIndex, input.value);
     }
+    // First Enter confirms the current item and keeps its list selected.
+    // A subsequent Enter is handled below and creates the next item.
+    window.selectBox(box);
+    input.blur();
 });
 // A list or note card can be selected without putting a text field into edit mode.
 // Keep that selection after renders caused by edits, deletion, ratings, or adding items.
@@ -73,7 +72,8 @@ document.addEventListener('keydown', event => {
     const box = document.querySelector('.list-box.box-selected');
     if (!box) return;
     event.preventDefault();
-    if (box.dataset.type === 'sharedSubList') addSharedSubItem(Number(box.dataset.shareId), box.dataset.subPath, Number(box.dataset.index));
+    if (box.dataset.type === 'sharedList') addSharedListItem(Number(box.dataset.shareId), Number(box.dataset.index));
+    else if (box.dataset.type === 'sharedSubList') addSharedSubItem(Number(box.dataset.shareId), box.dataset.subPath, Number(box.dataset.index));
     else if (box.dataset.type === 'subList') addSubItemToSub(box.dataset.subPath, Number(box.dataset.index));
     else addSubItem(Number(box.dataset.sectionId), Number(box.dataset.index));
 });
